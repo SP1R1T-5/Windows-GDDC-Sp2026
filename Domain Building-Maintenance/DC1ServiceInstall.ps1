@@ -41,16 +41,28 @@ Start-Service LanmanServer
 # ------------------------------
 # SSH
 # ------------------------------
+#Installing SSH Package
+write-output "Downloading SSH..."
+Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+
+#Starting SSH and enabling automatic startup
+write-output "Starting SSH"
 Start-Service sshd
 Set-Service -Name sshd -StartupType Automatic
 
-# Allow SSH through firewall
-New-NetFirewallRule -Name "OpenSSH-Server-In-TCP" `
-    -DisplayName "OpenSSH Server (TCP-In)" `
-    -Enabled True `
-    -Direction Inbound `
-    -Protocol TCP `
-    -Action Allow `
-    -LocalPort 22
+#Setting Firewall for SSH Connection
+write-output "Creating Firewall Rule"
+netsh advfirewall firewall add rule name="SSHD" dir=in action=allow protocol=TCP localport=22
+
+#Showing SSH Running
+Get-Service sshd
+
+New-NetFirewallRule -Name "sshd" `
+  -DisplayName "OpenSSH Server" `
+  -Enabled True `
+  -Direction Inbound `
+  -Protocol TCP `
+  -Action Allow `
+  -LocalPort 22
 
 Write-Host "`nAll services installed and enabled."

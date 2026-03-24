@@ -4,16 +4,6 @@
 
 Import-Module ServerManager
 
-# Install required Windows features
-Install-WindowsFeature `
-    AD-Domain-Services, `
-    RSAT-AD-Tools, `
-    FS-SMB1, `
-    FS-SMB1-CLIENT, `
-    FS-SMB1-SERVER, `
-    OpenSSH-Server `
-    -IncludeManagementTools
-
 # ------------------------------
 # LDAP (Active Directory)
 # ------------------------------
@@ -24,6 +14,9 @@ Write-Host "LDAP is active via Active Directory Domain Services"
 # WinRM
 # ------------------------------
 Enable-PSRemoting -Force
+Set-Service WinRM -StartupType Automatic
+Start-Service WinRM
+
 
 # Allow WinRM through firewall
 Set-NetFirewallRule -Name "WINRM-HTTP-In-TCP" -Enabled True

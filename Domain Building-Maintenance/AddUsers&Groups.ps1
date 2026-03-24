@@ -7,24 +7,24 @@ $LLUserPassword = ConvertTo-SecureString "bb123#123#123" -AsPlainText -Force
 
 $Users = @(
     @{ Username = "cdo";       FullName = "cdo";            Groups = "Domain Admins,Administrators"; AccountPassword = $LLUserPassword },
-    @{ Username = "jsmith";    FullName = "jsmith";     Groups = "Domain Admins"; AccountPassword = $LLUserPassword },
-    @{ Username = "amarino";    FullName = "amarino";     Groups = "Domain Users"; AccountPassword = $LLUserPassword },
-    @{ Username = "johnlinux";   FullName = "johnlinux";     Groups = "Domain Users"; AccountPassword = $LLUserPassword },
-    @{ Username = "alvin"; FullName = "alvin"; Groups = "Backup Operators"; AccountPassword = $LLUserPassword },
-    @{ Username = "theodore";   FullName = "theodore";     Groups = "Domain Users"; AccountPassword = $LLUserPassword },
-    @{ Username = "simon";   FullName = "simon";     Groups = "Domain Users"; AccountPassword = $LLUserPassword },
-    @{ Username = "abauer";   FullName = "abauer";     Groups = "Domain Users"; AccountPassword = $LLUserPassword },
-    @{ Username = "linuswindows";   FullName = "linuswindows";     Groups = "Domain Users"; AccountPassword = $LLUserPassword },
-    @{ Username = "acapece";   FullName = "acapece";     Groups = "Domain Users"; AccountPassword = $LLUserPassword },
-    @{ Username = "mdesocio";   FullName = "mdesocio";     Groups = "Domain Users"; AccountPassword = $LLUserPassword },
-    @{ Username = "analyst1";   FullName = "analyst1";     Groups = "Domain Users"; AccountPassword = $LLUserPassword },
-    @{ Username = "analyst2";   FullName = "analyst2";     Groups = "Domain Users"; AccountPassword = $LLUserPassword },
-    @{ Username = "analyst3";   FullName = "analyst3";     Groups = "Domain Users"; AccountPassword = $LLUserPassword },
-    @{ Username = "analyst4";   FullName = "analyst4";     Groups = "Domain Users"; AccountPassword = $LLUserPassword },
-    @{ Username = "analyst5";   FullName = "analyst5";     Groups = "Domain Users"; AccountPassword = $LLUserPassword },
-    @{ Username = "analyst6";   FullName = "analyst6";     Groups = "Domain Users"; AccountPassword = $LLUserPassword },
-    @{ Username = "analyst7";   FullName = "analyst7";     Groups = "Domain Users"; AccountPassword = $LLUserPassword },
-    @{ Username = "theodore"; FullName = "theodore";    Groups = "Domain Users"; AccountPassword = $LLUserPassword }
+    @{ Username = "jsmith";    FullName = "jsmith";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
+    @{ Username = "amarino";    FullName = "amarino";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
+    @{ Username = "johnlinux";   FullName = "johnlinux";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
+    @{ Username = "alvin"; FullName = "alvin"; Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
+    @{ Username = "theodore";   FullName = "theodore";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
+    @{ Username = "simon";   FullName = "simon";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
+    @{ Username = "abauer";   FullName = "abauer";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
+    @{ Username = "linuswindows";   FullName = "linuswindows";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
+    @{ Username = "acapece";   FullName = "acapece";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
+    @{ Username = "mdesocio";   FullName = "mdesocio";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
+    @{ Username = "analyst1";   FullName = "analyst1";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
+    @{ Username = "analyst2";   FullName = "analyst2";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
+    @{ Username = "analyst3";   FullName = "analyst3";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
+    @{ Username = "analyst4";   FullName = "analyst4";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
+    @{ Username = "analyst5";   FullName = "analyst5";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
+    @{ Username = "analyst6";   FullName = "analyst6";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
+    @{ Username = "analyst7";   FullName = "analyst7";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
+    @{ Username = "theodore"; FullName = "theodore";    Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword }
 )
 
 $CustomGroups = @(

@@ -9,30 +9,30 @@
 $NewHostname      = "DC1"
 $DomainName       = "DOG.local"
 $NetBIOSName      = "DOG"
-$LLUserPassword  = (ConvertTo-SecureString "bb123#123#123" -AsPlainText -Force) # Low Level User Password
-$AdminPassword  = (ConvertTo-SecureString "UAUKnow67!" -AsPlainText -Force) # Admin Users Password
+$AdminPassword = (ConvertTo-SecureString "UAUKnow67!" -AsPlainText -Force)  # Admin recovery password
+$LLUserPassowrd = (ConvertTo-SecureString "bb123#123#123" -AsPlainText -Force)  # Low Level User recovery password
 
-# --- User List --- 
-# These users are not intended for red team access, but who knows :)
-# Scoring User is cdo and will not be a red team asset
+# --- User List ---
+# Use "Groups" for all users (comma-separated if multiple groups needed)
 $Users = @(
-    @{ Username = "cdo";    FullName = "cdo";     Groups = "Domain Admins, Administrators"; AccountPassword = "bb123#123#123"  },
-    @{ Username = "jsmith";    FullName = "John Smith";     Group = "Domain Admins"; AccountPassword = "bb123#123#123"  },
-    @{ Username = "mjones";    FullName = "Mary Jones";     Group = "Domain Users"; AccountPassword = "bb123#123#123"    },
-    @{ Username = "bwilson";   FullName = "Bob Wilson";     Group = "Domain Users"; AccountPassword = "bb123#123#123"    },
-    @{ Username = "svcbackup"; FullName = "Backup Service"; Group = "Backup Operators"; AccountPassword = "bb123#123#123" },
-    @{ Username = "helpdesk1"; FullName = "Help Desk 1";    Group = "HelpDesk"; AccountPassword = "bb123#123#123"        }
+    @{ Username = "cdo";       FullName = "cdo";            Groups = "Domain Admins,Administrators"; AccountPassword = $LLUserPassowrd },
+    @{ Username = "jsmith";    FullName = "John Smith";      Groups = "Domain Admins";                AccountPassword = $LLUserPassowrd },
+    @{ Username = "mjones";    FullName = "Mary Jones";      Groups = "Domain Users";                 AccountPassword = $LLUserPassowrd },
+    @{ Username = "bwilson";   FullName = "Bob Wilson";      Groups = "Domain Users";                 AccountPassword = $LLUserPassowrd },
+    @{ Username = "svcbackup"; FullName = "Backup Service";  Groups = "Backup Operators";             AccountPassword = $LLUserPassowrd },
+    @{ Username = "helpdesk1"; FullName = "Help Desk 1";     Groups = "HelpDesk";                     AccountPassword = $LLUserPassowrd }
 )
 
 # --- Custom Groups to create (beyond built-in AD groups) ---
 $CustomGroups = @(
+    "HelpDesk",
     "WinRM Access",
     "SSH Access",
     "SMB Access"
 )
 
 # ==============================================================================
-# STEP 1 & 2 — Rename Computer & Promote to Domain Controller
+# PHASE 1 — Rename Computer & Promote to Domain Controller
 # ==============================================================================
 function Invoke-DomainSetup {
 
@@ -56,7 +56,7 @@ function Invoke-DomainSetup {
         -DomainNetbiosName             $NetBIOSName `
         -DomainMode                    "WinThreshold" `
         -ForestMode                    "WinThreshold" `
-        -SafeModeAdministratorPassword $SafeModePassword `
+        -SafeModeAdministratorPassword $AdminPassword `
         -InstallDns:$true `
         -NoRebootOnCompletion:$false `
         -Force:$true
@@ -65,14 +65,16 @@ function Invoke-DomainSetup {
 }
 
 # ==============================================================================
-# STEP 3 — Create Users & Groups (run after reboot)
+# PHASE 2 — Create Groups & Users (run after reboot)
 # ==============================================================================
 function Invoke-UserSetup {
 
-    Write-Host "`n=== STEP 4: Creating AD Groups ===" -ForegroundColor Cyan
     Import-Module ActiveDirectory
-    $DomainDN = (Get-ADDomain).DistinguishedName
 
+    # Build DN directly from $DomainName to avoid null query issue post-promotion
+    $DomainDN = "DC=" + ($DomainName -replace "\.", ",DC=")
+
+    Write-Host "`n=== STEP 4: Creating Custom AD Groups ===" -ForegroundColor Cyan
     foreach ($Group in $CustomGroups) {
         if (-not (Get-ADGroup -Filter { Name -eq $Group } -ErrorAction SilentlyContinue)) {
             New-ADGroup -Name $Group -GroupScope Global -GroupCategory Security `
@@ -83,11 +85,13 @@ function Invoke-UserSetup {
         }
     }
 
-    Write-Host "`n=== STEP 5: Creating Users ===" -ForegroundColor Cyan
+    Write-Host "`n=== STEP 5: Creating Users & Assigning Groups ===" -ForegroundColor Cyan
     foreach ($User in $Users) {
         $Username = $User.Username
         $FullName = $User.FullName
-        $Group    = $User.Group
+        $Password = (ConvertTo-SecureString $User.AccountPassword -AsPlainText -Force)
+        # Split comma-separated groups and trim whitespace
+        $Groups   = $User.Groups -split "," | ForEach-Object { $_.Trim() }
 
         if (-not (Get-ADUser -Filter { SamAccountName -eq $Username } -ErrorAction SilentlyContinue)) {
             New-ADUser `
@@ -96,7 +100,7 @@ function Invoke-UserSetup {
                 -Name                  $FullName `
                 -GivenName             ($FullName.Split(" ")[0]) `
                 -Surname               ($FullName.Split(" ")[-1]) `
-                -AccountPassword       $DefaultPassword `
+                -AccountPassword       $Password `
                 -ChangePasswordAtLogon $false `
                 -Enabled               $true `
                 -Path                  "CN=Users,$DomainDN"
@@ -106,11 +110,14 @@ function Invoke-UserSetup {
             Write-Host "     User '$Username' already exists. Skipping." -ForegroundColor Gray
         }
 
-        try {
-            Add-ADGroupMember -Identity $Group -Members $Username
-            Write-Host "     Added '$Username' to group '$Group'." -ForegroundColor Green
-        } catch {
-            Write-Warning "     Could not add '$Username' to '$Group': $_"
+        # Assign all groups (handles single or multiple)
+        foreach ($Group in $Groups) {
+            try {
+                Add-ADGroupMember -Identity $Group -Members $Username
+                Write-Host "     Added '$Username' to group '$Group'." -ForegroundColor Green
+            } catch {
+                Write-Warning "     Could not add '$Username' to '$Group': $_"
+            }
         }
     }
 
@@ -119,7 +126,7 @@ function Invoke-UserSetup {
 }
 
 # ==============================================================================
-# ENTRY POINT — Auto-detect which step to run
+# ENTRY POINT — Auto-detect which phase to run
 # ==============================================================================
 $adInstalled  = (Get-WindowsFeature -Name AD-Domain-Services).Installed
 $domainJoined = (Get-WmiObject Win32_ComputerSystem).PartOfDomain

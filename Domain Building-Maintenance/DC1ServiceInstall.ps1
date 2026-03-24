@@ -57,12 +57,4 @@ netsh advfirewall firewall add rule name="SSHD" dir=in action=allow protocol=TCP
 #Showing SSH Running
 Get-Service sshd
 
-New-NetFirewallRule -Name "sshd" `
-  -DisplayName "OpenSSH Server" `
-  -Enabled True `
-  -Direction Inbound `
-  -Protocol TCP `
-  -Action Allow `
-  -LocalPort 22
-
 Write-Host "`nAll services installed and enabled."

@@ -14,10 +14,6 @@ Install-WindowsFeature -Name Web-Server -IncludeManagementTools
 Set-Service -Name W3SVC -StartupType Automatic
 Start-Service W3SVC
 
-# Allow HTTP/HTTPS through firewall
-Enable-NetFirewallRule -DisplayGroup "World Wide Web Services (HTTP)"
-Enable-NetFirewallRule -DisplayGroup "World Wide Web Services (HTTPS)"
-
 
 # ------------------------------
 # RDP
@@ -82,8 +78,6 @@ write-output "Creating Firewall Rule"
 netsh advfirewall firewall add rule name="SSHD" dir=in action=allow protocol=TCP localport=22
 
 #Showing SSH Running
-Get-Service sshd
-
 Get-Service sshd
 
 

@@ -1,0 +1,22 @@
+# ==============================
+# Install AD DS and Join Existing Domain as Additional DC
+# ==============================
+$DomainName    = "DOG.local"
+$NetBIOSName   = "DOG"
+$AdminPassword = ConvertTo-SecureString "UAUKnow67!" -AsPlainText -Force
+
+# Credential of the existing domain admin
+$DomainAdminCred = Get-Credential -UserName "DOG\Administrator" -Message "Enter DOG domain admin password"
+
+Write-Host "`n=== Installing AD DS Role ===" -ForegroundColor Cyan
+Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools -Verbose
+
+Write-Host "`n=== Promoting to Additional Domain Controller ===" -ForegroundColor Cyan
+Import-Module ADDSDeployment
+Install-ADDSDomainController `
+    -DomainName                    $DomainName `
+    -SafeModeAdministratorPassword $AdminPassword `
+    -Credential                    $DomainAdminCred `
+    -InstallDns:$true `
+    -NoRebootOnCompletion:$false `
+    -Force:$true

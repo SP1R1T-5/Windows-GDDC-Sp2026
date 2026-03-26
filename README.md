@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="images/CDOlogo.png" alt="D.O.G. Digital Operations Group" width="180"/>
+<img src="assets/CDOlogo.png" alt="D.O.G. Digital Operations Group" width="180"/>
 &nbsp;&nbsp;&nbsp;&nbsp;
-<img src="images/DIGITALoperations.png" alt="CDO Logo" width="180"/>
+<img src="assets/DIGITALoperations.png" alt="CDO Logo" width="180"/>
 
 # CDO Competition Scripts
 

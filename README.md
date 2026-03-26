@@ -31,3 +31,8 @@ also, UA/CDO 2nd at NECCDC 2026 (99.99% uptime on windows) 🤯
 | Network | Static IPs assigned; DC1 reachable by DC2 before promotion |
 
 ---
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
+---

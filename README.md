@@ -4,7 +4,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;
 <img src="assets/DIGITALoperations.png" alt="CDO Logo" width="180"/>
 
-# CDO Competition Scripts
+# Great Dane Defense Competition (GDDC) Windows Infrastructure Setup
 
 </div>
 

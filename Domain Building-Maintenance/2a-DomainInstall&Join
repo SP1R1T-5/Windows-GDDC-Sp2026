@@ -5,8 +5,10 @@
 $DomainName    = "DOG.local"
 $AdminPassword = ConvertTo-SecureString "UAUKnow67!" -AsPlainText -Force
 
-# Credential of the existing domain admin
-$DomainAdminCred = Get-Credential -UserName "DOG\Administrator" -Message "Enter DOG domain admin password"
+# Build credential object explicitly
+$DomainAdminUser = "DOG\Administrator"
+$DomainAdminPass = Read-Host "Enter DOG domain admin password" -AsSecureString
+$DomainAdminCred = New-Object System.Management.Automation.PSCredential($DomainAdminUser, $DomainAdminPass)
 
 # ---- Verify DNS can resolve the domain before proceeding ----
 Write-Host "`n=== Checking DNS resolution for $DomainName ===" -ForegroundColor Cyan
@@ -30,7 +32,6 @@ Install-ADDSDomainController `
     -DomainName                    $DomainName `
     -SafeModeAdministratorPassword $AdminPassword `
     -Credential                    $DomainAdminCred `
-    -InstallDns:$true `
-    -CreateDnsDelegation:$false `
-    -NoRebootOnCompletion:$false `
-    -Force:$true
+    -InstallDns                    `
+    -CreateDnsDelegation:$false    `
+    -Force

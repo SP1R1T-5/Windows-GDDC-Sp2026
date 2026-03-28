@@ -1,6 +1,6 @@
 # Define domain, user, and password variables
 $domain = "DOG.local"
-$user = "DOG\\Administrator"
+$user = "DOG\Administrator"
 $password = "bb123#123" 
 
 # Convert password to a secure string

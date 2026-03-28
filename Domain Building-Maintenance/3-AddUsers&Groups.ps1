@@ -2,29 +2,28 @@
 # Create AD Users and Groups
 # ==============================
 
-$DomainName = "DOG.local"
+$DomainName     = "DOG.local"
 $LLUserPassword = ConvertTo-SecureString "bb123#123#123" -AsPlainText -Force
 
 $Users = @(
-    @{ Username = "cdo";       FullName = "cdo";            Groups = "Domain Admins,Administrators"; AccountPassword = $LLUserPassword },
-    @{ Username = "jsmith";    FullName = "jsmith";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
-    @{ Username = "amarino";    FullName = "amarino";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
-    @{ Username = "johnlinux";   FullName = "johnlinux";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
-    @{ Username = "alvin"; FullName = "alvin"; Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
-    @{ Username = "theodore";   FullName = "theodore";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
-    @{ Username = "simon";   FullName = "simon";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
-    @{ Username = "abauer";   FullName = "abauer";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
-    @{ Username = "linuswindows";   FullName = "linuswindows";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
-    @{ Username = "acapece";   FullName = "acapece";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
-    @{ Username = "mdesocio";   FullName = "mdesocio";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
-    @{ Username = "analyst1";   FullName = "analyst1";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
-    @{ Username = "analyst2";   FullName = "analyst2";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
-    @{ Username = "analyst3";   FullName = "analyst3";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
-    @{ Username = "analyst4";   FullName = "analyst4";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
-    @{ Username = "analyst5";   FullName = "analyst5";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
-    @{ Username = "analyst6";   FullName = "analyst6";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
-    @{ Username = "analyst7";   FullName = "analyst7";     Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword },
-    @{ Username = "theodore"; FullName = "theodore";    Groups = "WinRM Access, SSH Access, SMB Access"; AccountPassword = $LLUserPassword }
+    @{ Username = "cdo";          Groups = "Domain Admins,Administrators" },
+    @{ Username = "jsmith";       Groups = "WinRM Access,SSH Access,SMB Access" },
+    @{ Username = "amarino";      Groups = "WinRM Access,SSH Access,SMB Access" },
+    @{ Username = "johnlinux";    Groups = "WinRM Access,SSH Access,SMB Access" },
+    @{ Username = "alvin";        Groups = "WinRM Access,SSH Access,SMB Access" },
+    @{ Username = "theodore";     Groups = "WinRM Access,SSH Access,SMB Access" },
+    @{ Username = "simon";        Groups = "WinRM Access,SSH Access,SMB Access" },
+    @{ Username = "abauer";       Groups = "WinRM Access,SSH Access,SMB Access" },
+    @{ Username = "linuswindows"; Groups = "WinRM Access,SSH Access,SMB Access" },
+    @{ Username = "acapece";      Groups = "WinRM Access,SSH Access,SMB Access" },
+    @{ Username = "mdesocio";     Groups = "WinRM Access,SSH Access,SMB Access" },
+    @{ Username = "analyst1";     Groups = "WinRM Access,SSH Access,SMB Access" },
+    @{ Username = "analyst2";     Groups = "WinRM Access,SSH Access,SMB Access" },
+    @{ Username = "analyst3";     Groups = "WinRM Access,SSH Access,SMB Access" },
+    @{ Username = "analyst4";     Groups = "WinRM Access,SSH Access,SMB Access" },
+    @{ Username = "analyst5";     Groups = "WinRM Access,SSH Access,SMB Access" },
+    @{ Username = "analyst6";     Groups = "WinRM Access,SSH Access,SMB Access" },
+    @{ Username = "analyst7";     Groups = "WinRM Access,SSH Access,SMB Access" }
 )
 
 $CustomGroups = @(
@@ -37,46 +36,49 @@ Import-Module ActiveDirectory
 
 $DomainDN = "DC=" + ($DomainName -replace "\.", ",DC=")
 
+# ---- Create Custom Groups ----
 Write-Host "`n=== Creating Groups ===" -ForegroundColor Cyan
 foreach ($Group in $CustomGroups) {
     if (-not (Get-ADGroup -Filter { Name -eq $Group } -ErrorAction SilentlyContinue)) {
-        New-ADGroup -Name $Group -GroupScope Global -GroupCategory Security -Path "CN=Users,$DomainDN"
+        New-ADGroup `
+            -Name        $Group `
+            -GroupScope  Global `
+            -GroupCategory Security `
+            -Path        "CN=Users,$DomainDN"
         Write-Host "Created group: $Group" -ForegroundColor Green
     } else {
-        Write-Host "Group '$Group' exists. Skipping." -ForegroundColor Gray
+        Write-Host "Group '$Group' already exists. Skipping." -ForegroundColor Gray
     }
 }
 
+# ---- Create Users and Assign Groups ----
 Write-Host "`n=== Creating Users ===" -ForegroundColor Cyan
 foreach ($User in $Users) {
     $Username = $User.Username
-    $FullName = $User.FullName
-    $Password = $User.AccountPassword
     $Groups   = $User.Groups -split "," | ForEach-Object { $_.Trim() }
 
     if (-not (Get-ADUser -Filter { SamAccountName -eq $Username } -ErrorAction SilentlyContinue)) {
         New-ADUser `
             -SamAccountName        $Username `
             -UserPrincipalName     "$Username@$DomainName" `
-            -Name                  $FullName `
-            -GivenName             ($FullName.Split(" ")[0]) `
-            -Surname               ($FullName.Split(" ")[-1]) `
-            -AccountPassword       $Password `
+            -Name                  $Username `
+            -AccountPassword       $LLUserPassword `
             -ChangePasswordAtLogon $false `
+            -PasswordNeverExpires  $true `
             -Enabled               $true `
             -Path                  "CN=Users,$DomainDN"
 
         Write-Host "Created user: $Username" -ForegroundColor Green
     } else {
-        Write-Host "User '$Username' exists. Skipping." -ForegroundColor Gray
+        Write-Host "User '$Username' already exists. Skipping." -ForegroundColor Gray
     }
 
     foreach ($Group in $Groups) {
         try {
-            Add-ADGroupMember -Identity $Group -Members $Username
-            Write-Host "Added $Username to $Group" -ForegroundColor Green
+            Add-ADGroupMember -Identity $Group -Members $Username -ErrorAction Stop
+            Write-Host "  Added $Username -> $Group" -ForegroundColor Green
         } catch {
-            Write-Warning "Failed to add $Username to $Group"
+            Write-Warning "  Could not add $Username to '$Group': $_"
         }
     }
 }

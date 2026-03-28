@@ -1,10 +1,20 @@
-# ==============================
-# Create AD Users and Groups
-# ==============================
+# ============================================================
+# AD User Creation & Group Assignment Script
+# ============================================================
 
-$DomainName     = "DOG.local"
-$LLUserPassword = ConvertTo-SecureString "bb123#123#123" -AsPlainText -Force
+#Requires -Module ActiveDirectory
 
+param(
+    [Parameter(Mandatory)]
+    [string]$Domain,           # e.g. "contoso.local"
+
+    [Parameter(Mandatory)]
+    [string]$OUPath,           # e.g. "OU=Users,DC=contoso,DC=local"
+
+    [SecureString]$DefaultPassword = (ConvertTo-SecureString "ChangeMe123!" -AsPlainText -Force)
+)
+
+# ── User definitions ────────────────────────────────────────
 $Users = @(
     @{ Username = "cdo";          Groups = "Domain Admins,Administrators" },
     @{ Username = "jsmith";       Groups = "WinRM Access,SSH Access,SMB Access" },
@@ -26,70 +36,76 @@ $Users = @(
     @{ Username = "analyst7";     Groups = "WinRM Access,SSH Access,SMB Access" }
 )
 
-$CustomGroups = @(
+# ── Groups that must exist before we start ──────────────────
+$RequiredGroups = @(
     "WinRM Access",
     "SSH Access",
     "SMB Access"
 )
 
-# ---- Verify and load ActiveDirectory module ----
-if (-not (Get-Module -ListAvailable -Name ActiveDirectory)) {
-    Write-Error "ActiveDirectory module not found. Install RSAT: Install-WindowsFeature RSAT-AD-PowerShell"
-    exit 1
+# ── Helper: write coloured status lines ─────────────────────
+function Write-Status {
+    param([string]$Msg, [string]$Color = "Cyan")
+    Write-Host $Msg -ForegroundColor $Color
 }
-Import-Module ActiveDirectory -Force
-Write-Host "ActiveDirectory module loaded." -ForegroundColor Green
 
-$DomainDN = "DC=" + ($DomainName -replace "\.", ",DC=")
+# ============================================================
+# PHASE 1 – Ensure custom groups exist
+# ============================================================
+Write-Status "`n[Phase 1] Verifying / creating required groups..."
 
-# ---- Create Custom Groups ----
-Write-Host "`n=== Creating Groups ===" -ForegroundColor Cyan
-foreach ($Group in $CustomGroups) {
+foreach ($Group in $RequiredGroups) {
     if (-not (Get-ADGroup -Filter { Name -eq $Group } -ErrorAction SilentlyContinue)) {
-        New-ADGroup `
-            -Name          $Group `
-            -GroupScope    Global `
-            -GroupCategory Security `
-            -Path          "CN=Users,$DomainDN"
-        Write-Host "Created group: $Group" -ForegroundColor Green
+        New-ADGroup -Name $Group `
+                    -GroupScope Global `
+                    -GroupCategory Security `
+                    -Path $OUPath `
+                    -Description "Auto-created by provisioning script"
+        Write-Status "  Created group: $Group" "Yellow"
     } else {
-        Write-Host "Group '$Group' already exists. Skipping." -ForegroundColor Gray
+        Write-Status "  Group exists: $Group" "Green"
     }
 }
 
-# ---- Create Users and Assign Groups ----
-Write-Host "`n=== Creating Users ===" -ForegroundColor Cyan
-foreach ($User in $Users) {
-    $Username = $User.Username
-    $Groups   = $User.Groups -split "," | ForEach-Object { $_.Trim() }
+# ============================================================
+# PHASE 2 – Create users and assign groups
+# ============================================================
+Write-Status "`n[Phase 2] Creating users and assigning group memberships..."
 
-    if (-not (Get-ADUser -Filter "SamAccountName -eq '$Username'" -ErrorAction SilentlyContinue)) {
-        New-ADUser `
-            -SamAccountName        $Username `
-            -UserPrincipalName     "$Username@$DomainName" `
-            -Name                  $Username `
-            -GivenName             $Username `
-            -Surname               $Username `
-            -DisplayName           $Username `
-            -AccountPassword       $LLUserPassword `
-            -ChangePasswordAtLogon $false `
-            -PasswordNeverExpires  $true `
-            -Enabled               $true `
-            -Path                  "CN=Users,$DomainDN"
+foreach ($Entry in $Users) {
+    $Username = $Entry.Username
+    $GroupList = $Entry.Groups -split "," | ForEach-Object { $_.Trim() }
 
-        Write-Host "Created user: $Username" -ForegroundColor Green
+    # ── Create user if not already present ──────────────────
+    $ExistingUser = Get-ADUser -Filter { SamAccountName -eq $Username } -ErrorAction SilentlyContinue
+
+    if (-not $ExistingUser) {
+        try {
+            New-ADUser -SamAccountName      $Username `
+                       -UserPrincipalName   "$Username@$Domain" `
+                       -Name                $Username `
+                       -AccountPassword     $DefaultPassword `
+                       -Enabled             $true `
+                       -Path                $OUPath `
+                       -ChangePasswordAtLogon $true
+            Write-Status "  [+] Created user: $Username" "Yellow"
+        } catch {
+            Write-Status "  [!] Failed to create $Username – $($_.Exception.Message)" "Red"
+            continue
+        }
     } else {
-        Write-Host "User '$Username' already exists. Skipping." -ForegroundColor Gray
+        Write-Status "  [~] User exists, skipping creation: $Username" "DarkCyan"
     }
 
-    foreach ($Group in $Groups) {
+    # ── Assign groups ────────────────────────────────────────
+    foreach ($Group in $GroupList) {
         try {
             Add-ADGroupMember -Identity $Group -Members $Username -ErrorAction Stop
-            Write-Host "  Added $Username -> $Group" -ForegroundColor Green
+            Write-Status "      -> Added to '$Group'" "Green"
         } catch {
-            Write-Warning "  Could not add $Username to '$Group': $_"
+            Write-Status "      [!] Could not add $Username to '$Group': $($_.Exception.Message)" "Red"
         }
     }
 }
 
-Write-Host "`n=== Done ===" -ForegroundColor Cyan
+Write-Status "`n[Done] Provisioning complete.`n" "Cyan"

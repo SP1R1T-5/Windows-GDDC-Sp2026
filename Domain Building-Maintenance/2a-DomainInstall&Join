@@ -1,22 +1,36 @@
 # ==============================
 # Install AD DS and Join Existing Domain as Additional DC
 # ==============================
+
 $DomainName    = "DOG.local"
-$NetBIOSName   = "DOG"
 $AdminPassword = ConvertTo-SecureString "UAUKnow67!" -AsPlainText -Force
 
 # Credential of the existing domain admin
 $DomainAdminCred = Get-Credential -UserName "DOG\Administrator" -Message "Enter DOG domain admin password"
 
+# ---- Verify DNS can resolve the domain before proceeding ----
+Write-Host "`n=== Checking DNS resolution for $DomainName ===" -ForegroundColor Cyan
+try {
+    Resolve-DnsName $DomainName -ErrorAction Stop | Out-Null
+    Write-Host "DNS resolution successful." -ForegroundColor Green
+} catch {
+    Write-Error "Cannot resolve '$DomainName'. Make sure this server's DNS points to an existing DC."
+    exit 1
+}
+
+# ---- Install AD DS Role ----
 Write-Host "`n=== Installing AD DS Role ===" -ForegroundColor Cyan
 Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools -Verbose
 
+# ---- Promote to Additional Domain Controller ----
 Write-Host "`n=== Promoting to Additional Domain Controller ===" -ForegroundColor Cyan
 Import-Module ADDSDeployment
+
 Install-ADDSDomainController `
     -DomainName                    $DomainName `
     -SafeModeAdministratorPassword $AdminPassword `
     -Credential                    $DomainAdminCred `
     -InstallDns:$true `
+    -CreateDnsDelegation:$false `
     -NoRebootOnCompletion:$false `
     -Force:$true

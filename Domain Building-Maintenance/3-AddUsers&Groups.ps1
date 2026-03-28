@@ -4,12 +4,9 @@
 
 #Requires -Module ActiveDirectory
 
-param(
-    [SecureString]$DefaultPassword = (ConvertTo-SecureString "ChangeMe123!" -AsPlainText -Force)
-)
-
-$Domain = "dog.local"
-$OUPath = "OU=Users,DC=dog,DC=local"
+$Domain        = "dog.local"
+$OUPath        = "OU=Users,DC=dog,DC=local"
+$DefaultPassword = ConvertTo-SecureString "bb123#123#123" -AsPlainText -Force
 
 # ── User definitions ────────────────────────────────────────
 $Users = @(
@@ -70,7 +67,7 @@ foreach ($Group in $RequiredGroups) {
 Write-Status "`n[Phase 2] Creating users and assigning group memberships..."
 
 foreach ($Entry in $Users) {
-    $Username = $Entry.Username
+    $Username  = $Entry.Username
     $GroupList = $Entry.Groups -split "," | ForEach-Object { $_.Trim() }
 
     # ── Create user if not already present ──────────────────
@@ -78,13 +75,13 @@ foreach ($Entry in $Users) {
 
     if (-not $ExistingUser) {
         try {
-            New-ADUser -SamAccountName       $Username `
-                       -UserPrincipalName    "$Username@$Domain" `
-                       -Name                 $Username `
-                       -AccountPassword      $DefaultPassword `
-                       -Enabled              $true `
-                       -Path                 $OUPath `
-                       -ChangePasswordAtLogon $true
+            New-ADUser -SamAccountName        $Username `
+                       -UserPrincipalName     "$Username@$Domain" `
+                       -Name                  $Username `
+                       -AccountPassword       $DefaultPassword `
+                       -Enabled               $true `
+                       -Path                  $OUPath `
+                       -ChangePasswordAtLogon  $true
             Write-Status "  [+] Created user: $Username" "Yellow"
         } catch {
             Write-Status "  [!] Failed to create $Username – $($_.Exception.Message)" "Red"

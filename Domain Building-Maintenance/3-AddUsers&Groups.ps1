@@ -1,105 +1,170 @@
-# ============================================================
-# AD User Creation & Group Assignment Script
-# ============================================================
-
 #Requires -Module ActiveDirectory
+#Requires -RunAsAdministrator
 
-$Domain        = "dog.local"
-$OUPath        = "OU=Users,DC=dog,DC=local"
-$DefaultPassword = ConvertTo-SecureString "bb123#123#123" -AsPlainText -Force
+# ============================================================
+# AD User Creation & Group Assignment Script (Improved)
+# ============================================================
+
+param(
+    [string]$Domain = "dog.local",
+    [string]$OUPath = "OU=Users,DC=dog,DC=local",
+    [string]$DefaultPassword = "ChangeMe123!",
+    [switch]$Verbose
+)
+
+$SecurePassword = ConvertTo-SecureString $DefaultPassword -AsPlainText -Force
 
 # ── User definitions ────────────────────────────────────────
 $Users = @(
-    @{ Username = "cdo";          Groups = "Domain Admins,Administrators" },
-    @{ Username = "jsmith";       Groups = "WinRM Access,SSH Access,SMB Access" },
-    @{ Username = "amarino";      Groups = "WinRM Access,SSH Access,SMB Access" },
-    @{ Username = "johnlinux";    Groups = "WinRM Access,SSH Access,SMB Access" },
-    @{ Username = "alvin";        Groups = "WinRM Access,SSH Access,SMB Access" },
-    @{ Username = "theodore";     Groups = "WinRM Access,SSH Access,SMB Access" },
-    @{ Username = "simon";        Groups = "WinRM Access,SSH Access,SMB Access" },
-    @{ Username = "abauer";       Groups = "WinRM Access,SSH Access,SMB Access" },
-    @{ Username = "linuswindows"; Groups = "WinRM Access,SSH Access,SMB Access" },
-    @{ Username = "acapece";      Groups = "WinRM Access,SSH Access,SMB Access" },
-    @{ Username = "mdesocio";     Groups = "WinRM Access,SSH Access,SMB Access" },
-    @{ Username = "analyst1";     Groups = "WinRM Access,SSH Access,SMB Access" },
-    @{ Username = "analyst2";     Groups = "WinRM Access,SSH Access,SMB Access" },
-    @{ Username = "analyst3";     Groups = "WinRM Access,SSH Access,SMB Access" },
-    @{ Username = "analyst4";     Groups = "WinRM Access,SSH Access,SMB Access" },
-    @{ Username = "analyst5";     Groups = "WinRM Access,SSH Access,SMB Access" },
-    @{ Username = "analyst6";     Groups = "WinRM Access,SSH Access,SMB Access" },
-    @{ Username = "analyst7";     Groups = "WinRM Access,SSH Access,SMB Access" }
+    @{ Username = "cdo";          Groups = @("Domain Admins", "Administrators") },
+    @{ Username = "jsmith";       Groups = @("WinRM Access", "SSH Access", "SMB Access") },
+    @{ Username = "amarino";      Groups = @("WinRM Access", "SSH Access", "SMB Access") },
+    @{ Username = "johnlinux";    Groups = @("WinRM Access", "SSH Access", "SMB Access") },
+    @{ Username = "alvin";        Groups = @("WinRM Access", "SSH Access", "SMB Access") },
+    @{ Username = "theodore";     Groups = @("WinRM Access", "SSH Access", "SMB Access") },
+    @{ Username = "simon";        Groups = @("WinRM Access", "SSH Access", "SMB Access") },
+    @{ Username = "abauer";       Groups = @("WinRM Access", "SSH Access", "SMB Access") },
+    @{ Username = "linuswindows"; Groups = @("WinRM Access", "SSH Access", "SMB Access") },
+    @{ Username = "acapece";      Groups = @("WinRM Access", "SSH Access", "SMB Access") },
+    @{ Username = "mdesocio";     Groups = @("WinRM Access", "SSH Access", "SMB Access") },
+    @{ Username = "analyst1";     Groups = @("WinRM Access", "SSH Access", "SMB Access") },
+    @{ Username = "analyst2";     Groups = @("WinRM Access", "SSH Access", "SMB Access") },
+    @{ Username = "analyst3";     Groups = @("WinRM Access", "SSH Access", "SMB Access") },
+    @{ Username = "analyst4";     Groups = @("WinRM Access", "SSH Access", "SMB Access") },
+    @{ Username = "analyst5";     Groups = @("WinRM Access", "SSH Access", "SMB Access") },
+    @{ Username = "analyst6";     Groups = @("WinRM Access", "SSH Access", "SMB Access") },
+    @{ Username = "analyst7";     Groups = @("WinRM Access", "SSH Access", "SMB Access") }
 )
 
-# ── Groups that must exist before we start ──────────────────
-$RequiredGroups = @(
-    "WinRM Access",
-    "SSH Access",
-    "SMB Access"
-)
-
-# ── Helper: write coloured status lines ─────────────────────
+# ── Helper functions ────────────────────────────────────────
 function Write-Status {
-    param([string]$Msg, [string]$Color = "Cyan")
-    Write-Host $Msg -ForegroundColor $Color
+    param([string]$Msg, [string]$Status = "INFO")
+    $color = @{
+        "✓" = "Green"
+        "!" = "Red"
+        "~" = "Yellow"
+        ">" = "Cyan"
+        "INFO" = "Cyan"
+    }[$Status]
+    Write-Host "[$Status] $Msg" -ForegroundColor $color
 }
 
-# ============================================================
-# PHASE 1 – Ensure custom groups exist
-# ============================================================
-Write-Status "`n[Phase 1] Verifying / creating required groups..."
-
-foreach ($Group in $RequiredGroups) {
-    if (-not (Get-ADGroup -Filter { Name -eq $Group } -ErrorAction SilentlyContinue)) {
-        New-ADGroup -Name $Group `
+function Ensure-GroupExists {
+    param([string]$GroupName)
+    $group = Get-ADGroup -Filter { Name -eq $GroupName } -ErrorAction SilentlyContinue
+    if ($group) {
+        return $true
+    }
+    try {
+        New-ADGroup -Name $GroupName `
                     -GroupScope Global `
                     -GroupCategory Security `
                     -Path $OUPath `
                     -Description "Auto-created by provisioning script"
-        Write-Status "  Created group: $Group" "Yellow"
-    } else {
-        Write-Status "  Group exists: $Group" "Green"
+        Write-Status "Created group: $GroupName" "✓"
+        return $true
+    } catch {
+        Write-Status "Failed to create group '$GroupName': $($_.Exception.Message)" "!"
+        return $false
     }
+}
+
+function New-ADUserSafe {
+    param([string]$Username, [securestring]$Password, [string]$Domain, [string]$OUPath)
+    
+    try {
+        New-ADUser -SamAccountName $Username `
+                   -UserPrincipalName "$Username@$Domain" `
+                   -Name $Username `
+                   -AccountPassword $Password `
+                   -Enabled $true `
+                   -Path $OUPath `
+                   -ChangePasswordAtLogon $true `
+                   -ErrorAction Stop
+        Write-Status "Created user: $Username" "✓"
+        return $true
+    } catch {
+        Write-Status "Failed to create user '$Username': $($_.Exception.Message)" "!"
+        return $false
+    }
+}
+
+function Add-UserToGroupSafe {
+    param([string]$Username, [string]$GroupName)
+    
+    try {
+        Add-ADGroupMember -Identity $GroupName -Members $Username -ErrorAction Stop
+        Write-Status "  → Added to '$GroupName'" "✓"
+        return $true
+    } catch {
+        # Check if user is already a member
+        if ($_.Exception.Message -like "*already a member*") {
+            Write-Status "  → Already member of '$GroupName'" "~"
+            return $true
+        }
+        Write-Status "  Failed to add to '$GroupName': $($_.Exception.Message)" "!"
+        return $false
+    }
+}
+
+# ============================================================
+# PHASE 1 – Verify all groups exist
+# ============================================================
+Write-Status "`nPhase 1: Verifying required groups..." ">"
+$allGroups = $Users | ForEach-Object { $_.Groups } | Select-Object -Unique
+$groupsOK = $true
+
+foreach ($group in $allGroups) {
+    if (-not (Ensure-GroupExists $group)) {
+        $groupsOK = $false
+    }
+}
+
+if (-not $groupsOK) {
+    Write-Status "Some groups could not be created. Continuing anyway..." "!"
 }
 
 # ============================================================
 # PHASE 2 – Create users and assign groups
 # ============================================================
-Write-Status "`n[Phase 2] Creating users and assigning group memberships..."
+Write-Status "`nPhase 2: Creating users and assigning groups..." ">"
 
-foreach ($Entry in $Users) {
-    $Username  = $Entry.Username
-    $GroupList = $Entry.Groups -split "," | ForEach-Object { $_.Trim() }
+$created = 0
+$skipped = 0
+$failed = 0
 
-    # ── Create user if not already present ──────────────────
-    $ExistingUser = Get-ADUser -Filter { SamAccountName -eq $Username } -ErrorAction SilentlyContinue
-
-    if (-not $ExistingUser) {
-        try {
-            New-ADUser -SamAccountName        $Username `
-                       -UserPrincipalName     "$Username@$Domain" `
-                       -Name                  $Username `
-                       -AccountPassword       $DefaultPassword `
-                       -Enabled               $true `
-                       -Path                  $OUPath `
-                       -ChangePasswordAtLogon  $true
-            Write-Status "  [+] Created user: $Username" "Yellow"
-        } catch {
-            Write-Status "  [!] Failed to create $Username – $($_.Exception.Message)" "Red"
-            continue
-        }
+foreach ($entry in $Users) {
+    $username = $entry.Username
+    
+    # Check if user exists
+    $existingUser = Get-ADUser -Filter { SamAccountName -eq $username } -ErrorAction SilentlyContinue
+    
+    if ($existingUser) {
+        Write-Status "User already exists: $username" "~"
+        $skipped++
     } else {
-        Write-Status "  [~] User exists, skipping creation: $Username" "DarkCyan"
-    }
-
-    # ── Assign groups ────────────────────────────────────────
-    foreach ($Group in $GroupList) {
-        try {
-            Add-ADGroupMember -Identity $Group -Members $Username -ErrorAction Stop
-            Write-Status "      -> Added to '$Group'" "Green"
-        } catch {
-            Write-Status "      [!] Could not add $Username to '$Group': $($_.Exception.Message)" "Red"
+        if (New-ADUserSafe -Username $username -Password $SecurePassword -Domain $Domain -OUPath $OUPath) {
+            $created++
+        } else {
+            $failed++
+            continue  # Skip group assignment if user creation failed
         }
+    }
+    
+    # Assign groups
+    foreach ($group in $entry.Groups) {
+        Add-UserToGroupSafe -Username $username -GroupName $group | Out-Null
     }
 }
 
-Write-Status "`n[Done] Provisioning complete.`n" "Cyan"
+# ============================================================
+# Summary
+# ============================================================
+Write-Status "`n✓ Provisioning Complete" ">"
+Write-Host @"
+  Created: $created
+  Skipped: $skipped
+  Failed:  $failed
+  Total:   $($Users.Count)
+"@
+Write-Status "`nIMPORTANT: Users must change password on first login!`n" "!"

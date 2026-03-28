@@ -1,39 +1,13 @@
-# ==============================
-# Join Domain Script (Windows Server 2016)
-# ==============================
+# Define domain, user, and password variables
+$domain = "DOG.local"
+$user = "DOG\\Administrator"
+$password = "bb123#123" 
 
-# Variables
-$DomainName = "yourdomain.local"
-$OUPath = "OU=Servers,DC=yourdomain,DC=local"   # Optional, set to $null if not needed
-$RestartAfterJoin = $true
+# Convert password to a secure string
+$securePassword = ConvertTo-SecureString $password -AsPlainText -Force
 
-# Prompt for domain credentials
-$Credential = Get-Credential -Message "Enter domain admin credentials"
+# Create the credential object
+$credential = New-Object System.Management.Automation.PSCredential ($user, $securePassword)
 
-try {
-    Write-Host "Joining domain $DomainName..." -ForegroundColor Cyan
-
-    if ($OUPath -ne $null -and $OUPath -ne "") {
-        Add-Computer `
-            -DomainName $DomainName `
-            -OUPath $OUPath `
-            -Credential $Credential `
-            -ErrorAction Stop
-    } else {
-        Add-Computer `
-            -DomainName $DomainName `
-            -Credential $Credential `
-            -ErrorAction Stop
-    }
-
-    Write-Host "Successfully joined domain." -ForegroundColor Green
-
-    if ($RestartAfterJoin) {
-        Write-Host "Restarting system..." -ForegroundColor Yellow
-        Restart-Computer -Force
-    }
-
-} catch {
-    Write-Host "Failed to join domain:" -ForegroundColor Red
-    Write-Host $_.Exception.Message
-}
+# Join the computer to the domain
+Add-Computer -DomainName $domain -Credential $credential -Restart -Force

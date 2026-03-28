@@ -41,10 +41,10 @@ Write-Host "`n=== Creating Groups ===" -ForegroundColor Cyan
 foreach ($Group in $CustomGroups) {
     if (-not (Get-ADGroup -Filter { Name -eq $Group } -ErrorAction SilentlyContinue)) {
         New-ADGroup `
-            -Name        $Group `
-            -GroupScope  Global `
+            -Name          $Group `
+            -GroupScope    Global `
             -GroupCategory Security `
-            -Path        "CN=Users,$DomainDN"
+            -Path          "CN=Users,$DomainDN"
         Write-Host "Created group: $Group" -ForegroundColor Green
     } else {
         Write-Host "Group '$Group' already exists. Skipping." -ForegroundColor Gray
@@ -62,6 +62,9 @@ foreach ($User in $Users) {
             -SamAccountName        $Username `
             -UserPrincipalName     "$Username@$DomainName" `
             -Name                  $Username `
+            -GivenName             $Username `
+            -Surname               $Username `
+            -DisplayName           $Username `
             -AccountPassword       $LLUserPassword `
             -ChangePasswordAtLogon $false `
             -PasswordNeverExpires  $true `

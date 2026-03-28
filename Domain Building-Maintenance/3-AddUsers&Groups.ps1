@@ -5,14 +5,11 @@
 #Requires -Module ActiveDirectory
 
 param(
-    [Parameter(Mandatory)]
-    [string]$Domain,           # e.g. "contoso.local"
-
-    [Parameter(Mandatory)]
-    [string]$OUPath,           # e.g. "OU=Users,DC=contoso,DC=local"
-
     [SecureString]$DefaultPassword = (ConvertTo-SecureString "ChangeMe123!" -AsPlainText -Force)
 )
+
+$Domain = "dog.local"
+$OUPath = "OU=Users,DC=dog,DC=local"
 
 # ── User definitions ────────────────────────────────────────
 $Users = @(
@@ -81,12 +78,12 @@ foreach ($Entry in $Users) {
 
     if (-not $ExistingUser) {
         try {
-            New-ADUser -SamAccountName      $Username `
-                       -UserPrincipalName   "$Username@$Domain" `
-                       -Name                $Username `
-                       -AccountPassword     $DefaultPassword `
-                       -Enabled             $true `
-                       -Path                $OUPath `
+            New-ADUser -SamAccountName       $Username `
+                       -UserPrincipalName    "$Username@$Domain" `
+                       -Name                 $Username `
+                       -AccountPassword      $DefaultPassword `
+                       -Enabled              $true `
+                       -Path                 $OUPath `
                        -ChangePasswordAtLogon $true
             Write-Status "  [+] Created user: $Username" "Yellow"
         } catch {

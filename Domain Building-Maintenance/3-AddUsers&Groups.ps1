@@ -32,7 +32,13 @@ $CustomGroups = @(
     "SMB Access"
 )
 
-Import-Module ActiveDirectory
+# ---- Verify and load ActiveDirectory module ----
+if (-not (Get-Module -ListAvailable -Name ActiveDirectory)) {
+    Write-Error "ActiveDirectory module not found. Install RSAT: Install-WindowsFeature RSAT-AD-PowerShell"
+    exit 1
+}
+Import-Module ActiveDirectory -Force
+Write-Host "ActiveDirectory module loaded." -ForegroundColor Green
 
 $DomainDN = "DC=" + ($DomainName -replace "\.", ",DC=")
 
@@ -57,7 +63,7 @@ foreach ($User in $Users) {
     $Username = $User.Username
     $Groups   = $User.Groups -split "," | ForEach-Object { $_.Trim() }
 
-    if (-not (Get-ADUser -Filter { SamAccountName -eq $Username } -ErrorAction SilentlyContinue)) {
+    if (-not (Get-ADUser -Filter "SamAccountName -eq '$Username'" -ErrorAction SilentlyContinue)) {
         New-ADUser `
             -SamAccountName        $Username `
             -UserPrincipalName     "$Username@$DomainName" `

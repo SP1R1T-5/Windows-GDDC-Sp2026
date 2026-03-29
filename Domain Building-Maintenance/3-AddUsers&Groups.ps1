@@ -10,12 +10,12 @@ $ADUsers = Import-csv C:\Users\Public\Storage\NewEmployees.csv
 #Added a LOOP $ADUsers is the folder PATH
 
 foreach ($User in $ADUsers) {
-  $Username = $User.UserName
-  $Password = $User.Password
-  $Firstname = $User.FirstName
-  $Lastname = $User.LastName
-  $OUName = $User.OrganizationalUnit
-  $Path = "OU=Users,DC=dog,DC=local"
+	$Username = $User.UserName
+	$Password = $User.Password
+	$Firstname = $User.FirstName
+	$Lastname = $User.LastName
+	$Employees = $User.OrganizationalUnit  # ← Changed from $OUName
+	$Path = "OU=$Employees,DC=dog,DC=local"  # ← Now $Employees is defined
   
   if (!(Get-ADOrganizationalUnit -Filter {Name -eq $Employees} -SearchBase "DC=dog,DC=local")) {
     New-ADOrganizationalUnit -Name $Employees -Path "DC=dog,DC=local"

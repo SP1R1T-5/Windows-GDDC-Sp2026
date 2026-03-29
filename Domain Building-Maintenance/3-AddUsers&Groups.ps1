@@ -46,21 +46,17 @@ foreach ($user in $users) {
     
     # Create the AD user with the paired password
     try {
-        New-ADUser -Name "$first $last" `
-            -GivenName "$first" `
-            -Surname "$last" `
+        New-ADUser -Name "$name" `
             -SamAccountName "$samAccountName" `
-            -UserPrincipalName "$samAccountName@dog.local" `
             -Path "OU=Users,DC=Dog,DC=local" `
             -PasswordNeverExpires $true `
             -AccountPassword $pwd `
             -Enabled $true
-        
+                    
         Write-Host "✓ Successfully created $samAccountName with assigned password" -ForegroundColor Green
     }
     catch {
         Write-Host "✗ Failed to create $samAccountName : $_" -ForegroundColor Red
     }
-}
 
 Write-Host "`nUser creation complete!" -ForegroundColor Cyan

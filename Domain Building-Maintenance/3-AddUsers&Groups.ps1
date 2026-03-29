@@ -1,43 +1,38 @@
-# Check if Active Directory module is available
-if (!(Get-Module -ListAvailable ActiveDirectory)) {
-    Write-Error "The Active Directory module is not installed. Please run: Install-WindowsFeature RSAT-AD-PowerShell"
-    return
-}
-
+# Import AD module
 Import-Module ActiveDirectory
 
+# Config
 $csvPath = "C:\Users\Public\Storage\users.csv"
+$domain = "dog.local"
+$ouPath = "OU=Users,DC=dog,DC=local"
 
-# Verify file exists
-if (-Not (Test-Path $csvPath)) {
-    Write-Error "Cannot find $csvPath. Ensure the file is in the same directory as this script."
-    return
-}
-
-# Load the users from the CSV (Headerless)
-$users = Import-Csv -Path $csvPath -Header "Username", "Password"
+# Import CSV (no headers, so define them)
+$users = Import-Csv -Path $csvPath -Header Username,Password
 
 foreach ($user in $users) {
-    $sam = $user.Username
-    $pass = $user.Password
-    $upn = "$sam@dog.local"
-    
-    # Secure the password
-    $securePass = ConvertTo-SecureString $pass -AsPlainText -Force
+
+    $securePassword = ConvertTo-SecureString $user.Password -AsPlainText -Force
+
+    # Skip if user already exists
+    if (Get-ADUser -Filter "SamAccountName -eq '$($user.Username)'" -ErrorAction SilentlyContinue) {
+        Write-Host "User already exists: $($user.Username)" -ForegroundColor Yellow
+        continue
+    }
 
     try {
-        # Attempt to create the user
-        New-ADUser -Name $sam `
-                   -SamAccountName $sam `
-                   -UserPrincipalName $upn `
-                   -AccountPassword $securePass `
-                   -Enabled $true `
-                   -ChangePasswordAtLogon $false
-        
-        Write-Host "Successfully created user: $sam" -ForegroundColor Green
+        New-ADUser `
+            -Name $user.Username `
+            -SamAccountName $user.Username `
+            -UserPrincipalName "$($user.Username)@$domain" `
+            -AccountPassword $securePassword `
+            -Path $ouPath `
+            -Enabled $true `
+            -ChangePasswordAtLogon $false
+
+        Write-Host "Created user: $($user.Username)" -ForegroundColor Green
     }
     catch {
-        Write-Host "Failed to create user $sam. It may already exist or there is a permission issue." -ForegroundColor Red
-        Write-Error $_.Exception.Message
+        Write-Host "Failed: $($user.Username)" -ForegroundColor Red
+        Write-Host $_
     }
 }

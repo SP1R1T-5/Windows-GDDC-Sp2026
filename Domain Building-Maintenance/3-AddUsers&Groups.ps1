@@ -29,8 +29,14 @@ foreach ($Group in $CustomGroups) {
 Write-Host "`n=== Creating Users ===" -ForegroundColor Cyan
 
 # Import users from CSV file (username, password format)
-$userLines = Get-Content "C:\Public\Storage\users.csv"
+$userLines = Get-Content "C:\Users\Public\Storage\users.csv"
 foreach ($line in $userLines) {
+    # Skip empty lines
+    if ([string]::IsNullOrWhiteSpace($line)) {
+        continue
+    }
+    
+    # Split the line by comma
     $parts = $line -split ","
     $username = $parts[0].Trim()
     $password = $parts[1].Trim()
@@ -38,8 +44,15 @@ foreach ($line in $userLines) {
     Write-Host "Creating user: $username" -ForegroundColor Green
     
     try {
-        # Get the Users OU
-        $adsi = [ADSI]$UsersOU
+        # Get the Users container
+        $adsi = [ADSI]$UsersPath
+        
+        # Check if user already exists
+        $existingUser = $adsi.Children | Where-Object { $_.sAMAccountName -eq $username }
+        if ($null -ne $existingUser) {
+            Write-Host "  User '$username' already exists. Skipping." -ForegroundColor Yellow
+            continue
+        }
         
         # Create the user object
         $newUser = $adsi.Create("user", "cn=$username")
@@ -53,14 +66,14 @@ foreach ($line in $userLines) {
         # Set the password
         $newUser.SetPassword($password)
         
-        # Enable the account (512 = Normal account)
+        # Enable the account (512 = Normal account, enabled)
         $newUser.Put("userAccountControl", 512)
         $newUser.SetInfo()
         
-        Write-Host "✓ Successfully created $username with assigned password" -ForegroundColor Green
+        Write-Host "  ✓ Successfully created $username" -ForegroundColor Green
     }
     catch {
-        Write-Host "✗ Failed to create $username : $_" -ForegroundColor Red
+        Write-Host "  ✗ Failed to create $username : $_" -ForegroundColor Red
     }
 }
 

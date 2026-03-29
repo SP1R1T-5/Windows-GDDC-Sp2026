@@ -29,12 +29,11 @@ foreach ($Group in $CustomGroups) {
 Write-Host "`n=== Creating Users ===" -ForegroundColor Cyan
 
 # Import users from CSV file (username, password format)
-$users = Import-Csv "C:\Public\Storage\users.csv" -Header @("Username", "Password")
-
-foreach ($user in $users) {
-    # Pull the username and password from the current user entry
-    $username = $user.Username.Trim()
-    $password = $user.Password.Trim()
+$userLines = Get-Content "C:\Public\Storage\users.csv"
+foreach ($line in $userLines) {
+    $parts = $line -split ","
+    $username = $parts[0].Trim()
+    $password = $parts[1].Trim()
     
     Write-Host "Creating user: $username" -ForegroundColor Green
     

@@ -23,23 +23,38 @@ foreach ($Group in $CustomGroups) {
 
 
 #Declare username and password variables.
-$usernames = Get-Content "C:\users.txt"
-$passwords = "bb123#123#123"
+$users = Import-Csv "C:\users.csv" -Header @("Name", "Password")
 
-# Ensure there are the same number of usernames and passwords
-if ($usernames.Count -ne $passwords.Count) {
-    Write-Error "The number of usernames and passwords does not match."
-    exit
+foreach ($user in $users) {
+    # Pull the name and password from the current user entry
+    $name = $user.Name.Trim()
+    $password = $user.Password.Trim()
+    
+    # Split name into first and last name
+    $first = $name.Split(" ")[0].ToLower()
+    $last = $name.Split(" ")[1].ToLower()
+    
+    # Convert password to secure string
+    $pwd = ConvertTo-SecureString -String $password -AsPlainText -Force
+    
+    Write-Host "Creating user: $first.$last" -ForegroundColor Green
+    
+    # Create the AD user with the paired password
+    try {
+        New-ADUser -Name "$first $last" `
+            -GivenName "$first" `
+            -Surname "$last" `
+            -SamAccountName "$first.$last" `
+            -Path "OU=IT, DC=MATT, DC=corp" `
+            -PasswordNeverExpires $true `
+            -AccountPassword $pwd `
+            -Enabled $true
+        
+        Write-Host "✓ Successfully created $first.$last with assigned password" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "✗ Failed to create $first.$last : $_" -ForegroundColor Red
+    }
 }
 
-# Loop through usernames and assign a corresponding password
-for ($i = 0; $i -lt $usernames.Count; $i++) {
-    $u = $usernames[$i]
-    $p = $passwords[$i]
-    $pwd = ConvertTo-SecureString -String $p -AsPlainText -Force
-
-    $first = $u.Split(" ")[0].ToLower()
-    $last = $u.Split(" ")[1].ToLower()
-
-    New-ADUser -Name "$first $last" -GivenName "$first" -Surname "$last" -SamAccountName "$first.$last" -Path "OU=IT, DC=MATT, DC=corp" -PasswordNeverExpires $true -AccountPassword $pwd -Enabled $true
-}
+Write-Host "`nUser creation complete!" -ForegroundColor Cyan

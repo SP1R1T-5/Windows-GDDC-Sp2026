@@ -1,4 +1,5 @@
 # Import AD module
+Install-WindowsFeature RSAT-AD-PowerShell
 Import-Module ActiveDirectory
 
 # Config
@@ -7,7 +8,7 @@ $domain = "dog.local"
 $ouPath = "OU=Users,DC=dog,DC=local"
 
 # Import CSV (no headers, so define them)
-$users = Import-Csv -Path $csvPath -Header Username,Password
+$users = Import-Csv -Path $csvPath -Header UserName,Password
 
 foreach ($user in $users) {
 
@@ -22,9 +23,12 @@ foreach ($user in $users) {
     try {
         New-ADUser `
             -Name $user.Username `
+            -DisplayName "$user.Username" `
             -SamAccountName $user.Username `
             -UserPrincipalName "$($user.Username)@$domain" `
             -AccountPassword $securePassword `
+            -ChangePasswordAtLogon $False `
+            -PasswordNeverExpires $True `
             -Path $ouPath `
             -Enabled $true `
             -ChangePasswordAtLogon $false

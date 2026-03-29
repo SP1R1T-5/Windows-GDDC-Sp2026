@@ -7,7 +7,7 @@ $CustomGroups = @(
 # Define domain information
 $Domain = "dog.local"
 $DomainDN = "DC=Dog,DC=local"
-$UsersOU = "LDAP://OU=Users,$Dog.local"
+$UsersOU = "LDAP://OU=Users,$DomainDN"
 
 # ---- Create Custom Groups ----
 Write-Host "`n=== Creating Groups ===" -ForegroundColor Cyan
@@ -28,50 +28,40 @@ foreach ($Group in $CustomGroups) {
 # ---- Create Users ----
 Write-Host "`n=== Creating Users ===" -ForegroundColor Cyan
 
-#Declare username and password variables.
-$users = Import-Csv "C:\Public\Storage\users.csv" -Header @("Name", "Password")
+# Import users from CSV file (username, password format)
+$users = Import-Csv "C:\Public\Storage\users.csv" -Header @("Username", "Password")
 
 foreach ($user in $users) {
-    # Pull the name and password from the current user entry
-    $name = $user.Name.Trim()
+    # Pull the username and password from the current user entry
+    $username = $user.Username.Trim()
     $password = $user.Password.Trim()
     
-    # Split name into first and last name
-    $nameParts = $name -split " "
-    $first = $nameParts[0]
-    $last = $nameParts[1]
-    
-    # Create login name (firstname.lastname format)
-    $loginName = "$($first.ToLower()).$($last.ToLower())"
-    
-    Write-Host "Creating user: $loginName" -ForegroundColor Green
+    Write-Host "Creating user: $username" -ForegroundColor Green
     
     try {
         # Get the Users OU
         $adsi = [ADSI]$UsersOU
         
         # Create the user object
-        $newUser = $adsi.Create("user", "cn=$name")
+        $newUser = $adsi.Create("user", "cn=$username")
         
         # Set user properties
-        $newUser.Put("sAMAccountName", $loginName)
-        $newUser.Put("userPrincipalName", "$loginName@$Domain")
-        $newUser.Put("givenName", $first)
-        $newUser.Put("sn", $last)
-        $newUser.Put("displayName", $name)
+        $newUser.Put("sAMAccountName", $username)
+        $newUser.Put("userPrincipalName", "$username@$Domain")
+        $newUser.Put("displayName", $username)
         $newUser.SetInfo()
         
         # Set the password
         $newUser.SetPassword($password)
         
-        # Enable the account
-        $newUser.Put("userAccountControl", 512)  # 512 = Normal account
+        # Enable the account (512 = Normal account)
+        $newUser.Put("userAccountControl", 512)
         $newUser.SetInfo()
         
-        Write-Host "✓ Successfully created $loginName with assigned password" -ForegroundColor Green
+        Write-Host "✓ Successfully created $username with assigned password" -ForegroundColor Green
     }
     catch {
-        Write-Host "✗ Failed to create $loginName : $_" -ForegroundColor Red
+        Write-Host "✗ Failed to create $username : $_" -ForegroundColor Red
     }
 }
 

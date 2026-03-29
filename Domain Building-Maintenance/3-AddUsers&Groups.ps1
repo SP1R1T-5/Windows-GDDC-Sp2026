@@ -30,22 +30,16 @@ foreach ($user in $users) {
     $name = $user.Name.Trim()
     $password = $user.Password.Trim()
     
-    # Split name into first and last name
-    $first = $name.Split(" ")[0].ToLower()
-    $last = $name.Split(" ")[1].ToLower()
-    
     # Convert password to secure string
     $pwd = ConvertTo-SecureString -String $password -AsPlainText -Force
     
-    Write-Host "Creating user: $first.$last" -ForegroundColor Green
+    Write-Host "Creating user: $name" -ForegroundColor Green
     
     # Create the AD user with the paired password
     try {
         New-ADUser -Name "$first $last" `
-            -GivenName "$first" `
-            -Surname "$last" `
-            -SamAccountName "$first.$last" `
-            -Path "OU=IT, DC=MATT, DC=corp" `
+            -SamAccountName "$name" `
+            -Path "OU=Users, DC=Dog, DC=local" `
             -PasswordNeverExpires $true `
             -AccountPassword $pwd `
             -Enabled $true

@@ -1,80 +1,45 @@
-$CustomGroups = @(
-    "WinRM Access",
-    "SSH Access",
-    "SMB Access"
-)
+#Install AD
+Install-WindowsFeature RSAT-AD-PowerShell
 
-# Define domain information
-$Domain = "dog.local"
-$DomainDN = "DC=Dog,DC=local"
-$UsersOU = "LDAP://OU=Users,$DomainDN"
+#Luc PowerSheel From Scratch
+Import-Module ActiveDirectory
 
-# ---- Create Custom Groups ----
-Write-Host "`n=== Creating Groups ===" -ForegroundColor Cyan
-foreach ($Group in $CustomGroups) {
+#Import the file from C:
+$ADUsers = Import-csv C:\Users\Public\Storage\NewEmployees.csv
+
+#Added a LOOP $ADUsers is the folder PATH
+
+foreach ($User in $ADUsers) {
+  $Username = $User.UserName
+  $Password = $User.Password
+  $Firstname = $User.FirstName
+  $Lastname = $User.LastName
+  $OUName = $User.OrganizationalUnit
+  $Path = "OU=Users,DC=dog,DC=local"
+  
+  if (!(Get-ADOrganizationalUnit -Filter {Name -eq $Employees} -SearchBase "DC=dog,DC=local")) {
+    New-ADOrganizationalUnit -Name $Employees -Path "DC=dog,DC=local"
+  }
+
+  if ($Password -ne '') {
     try {
-        $adsi = [ADSI]$UsersOU
-        $newGroup = $adsi.Create("group", "cn=$Group")
-        $newGroup.Put("objectClass", "group")
-        $newGroup.Put("groupType", -2147483646)  # Universal Security Group
-        $newGroup.SetInfo()
-        Write-Host "Created group: $Group" -ForegroundColor Green
+      #Added Attribute
+      $SecurePassword = ConvertTo-SecureString $Password -AsPlainText -Force
+      New-ADUser -SamAccountName $Username `
+      -UserPrincipalName "$Username@dog.local" `
+      -Name "$Firstname $Lastname" `
+      -GivenName $Firstname `
+      -Surname $Lastname `
+      -Enabled $True `
+      -DisplayName "$Lastname, $Firstname" `
+      -AccountPassword $SecurePassword `
+      -ChangePasswordAtLogon $False `
+      -PasswordNeverExpires $True `
+      -Path $Path
+    } catch {
+      Write-Host "Password for $Username does not meet domain password policy requirements. Skipping account creation."
     }
-    catch {
-        Write-Host "Group '$Group' already exists or error: $_" -ForegroundColor Gray
-    }
+  } else {
+    Write-Host "Password for $Username is empty. Skipping account creation."
+  }
 }
-
-# ---- Create Users ----
-Write-Host "`n=== Creating Users ===" -ForegroundColor Cyan
-
-# Import users from CSV file (username, password format)
-$userLines = Get-Content "C:\Users\Public\Storage\users.csv"
-foreach ($line in $userLines) {
-    # Skip empty lines
-    if ([string]::IsNullOrWhiteSpace($line)) {
-        continue
-    }
-    
-    # Split the line by comma
-    $parts = $line -split ","
-    $username = $parts[0].Trim()
-    $password = $parts[1].Trim()
-    
-    Write-Host "Creating user: $username" -ForegroundColor Green
-    
-    try {
-        # Get the Users container
-        $adsi = [ADSI]$UsersPath
-        
-        # Check if user already exists
-        $existingUser = $adsi.Children | Where-Object { $_.sAMAccountName -eq $username }
-        if ($null -ne $existingUser) {
-            Write-Host "  User '$username' already exists. Skipping." -ForegroundColor Yellow
-            continue
-        }
-        
-        # Create the user object
-        $newUser = $adsi.Create("user", "cn=$username")
-        
-        # Set user properties
-        $newUser.Put("sAMAccountName", $username)
-        $newUser.Put("userPrincipalName", "$username@$Domain")
-        $newUser.Put("displayName", $username)
-        $newUser.SetInfo()
-        
-        # Set the password
-        $newUser.SetPassword($password)
-        
-        # Enable the account (512 = Normal account, enabled)
-        $newUser.Put("userAccountControl", 512)
-        $newUser.SetInfo()
-        
-        Write-Host "  ✓ Successfully created $username" -ForegroundColor Green
-    }
-    catch {
-        Write-Host "  ✗ Failed to create $username : $_" -ForegroundColor Red
-    }
-}
-
-Write-Host "`nUser creation complete!" -ForegroundColor Cyan

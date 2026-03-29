@@ -3,7 +3,6 @@ $CustomGroups = @(
     "SSH Access",
     "SMB Access"
 )
-
 Import-Module ActiveDirectory
 
 # ---- Create Custom Groups ----
@@ -14,40 +13,53 @@ foreach ($Group in $CustomGroups) {
             -Name        $Group `
             -GroupScope  Global `
             -GroupCategory Security `
-            -Path        "CN=Users,$DomainDN"
+            -Path        "CN=Users,DC=Dog,DC=local"
         Write-Host "Created group: $Group" -ForegroundColor Green
     } else {
         Write-Host "Group '$Group' already exists. Skipping." -ForegroundColor Gray
     }
 }
 
+# ---- Create Users ----
+Write-Host "`n=== Creating Users ===" -ForegroundColor Cyan
 
 #Declare username and password variables.
-$users = Import-Csv "C:\users.csv" -Header @("Name", "Password")
+$users = Import-Csv "C:Public\Storage\users.csv" -Header @("Name", "Password")
 
 foreach ($user in $users) {
     # Pull the name and password from the current user entry
     $name = $user.Name.Trim()
     $password = $user.Password.Trim()
     
+    # Split name into first and last name
+    $nameParts = $name -split " "
+    $first = $nameParts[0].ToLower()
+    $last = $nameParts[1].ToLower()
+    
+    # Create SamAccountName (firstname.lastname format)
+    $samAccountName = "$first.$last"
+    
     # Convert password to secure string
     $pwd = ConvertTo-SecureString -String $password -AsPlainText -Force
     
-    Write-Host "Creating user: $name" -ForegroundColor Green
+    Write-Host "Creating user: $samAccountName" -ForegroundColor Green
     
     # Create the AD user with the paired password
     try {
         New-ADUser -Name "$first $last" `
-            -SamAccountName "$name" `
-            -Path "OU=Users, DC=Dog, DC=local" `
+            -GivenName "$first" `
+            -Surname "$last" `
+            -SamAccountName "$samAccountName" `
+            -UserPrincipalName "$samAccountName@dog.local" `
+            -Path "OU=Users,DC=Dog,DC=local" `
             -PasswordNeverExpires $true `
             -AccountPassword $pwd `
             -Enabled $true
         
-        Write-Host "✓ Successfully created $first.$last with assigned password" -ForegroundColor Green
+        Write-Host "✓ Successfully created $samAccountName with assigned password" -ForegroundColor Green
     }
     catch {
-        Write-Host "✗ Failed to create $first.$last : $_" -ForegroundColor Red
+        Write-Host "✗ Failed to create $samAccountName : $_" -ForegroundColor Red
     }
 }
 

@@ -3,20 +3,25 @@ $CustomGroups = @(
     "SSH Access",
     "SMB Access"
 )
-Import-Module ActiveDirectory
+
+# Define domain information
+$Domain = "dog.local"
+$DomainDN = "DC=Dog,DC=local"
+$UsersOU = "LDAP://OU=Users,$Dog.local"
 
 # ---- Create Custom Groups ----
 Write-Host "`n=== Creating Groups ===" -ForegroundColor Cyan
 foreach ($Group in $CustomGroups) {
-    if (-not (Get-ADGroup -Filter { Name -eq $Group } -ErrorAction SilentlyContinue)) {
-        New-ADGroup `
-            -Name        $Group `
-            -GroupScope  Global `
-            -GroupCategory Security `
-            -Path        "CN=Users,DC=Dog,DC=local"
+    try {
+        $adsi = [ADSI]$UsersOU
+        $newGroup = $adsi.Create("group", "cn=$Group")
+        $newGroup.Put("objectClass", "group")
+        $newGroup.Put("groupType", -2147483646)  # Universal Security Group
+        $newGroup.SetInfo()
         Write-Host "Created group: $Group" -ForegroundColor Green
-    } else {
-        Write-Host "Group '$Group' already exists. Skipping." -ForegroundColor Gray
+    }
+    catch {
+        Write-Host "Group '$Group' already exists or error: $_" -ForegroundColor Gray
     }
 }
 
@@ -24,7 +29,7 @@ foreach ($Group in $CustomGroups) {
 Write-Host "`n=== Creating Users ===" -ForegroundColor Cyan
 
 #Declare username and password variables.
-$users = Import-Csv "C:Public\Storage\users.csv" -Header @("Name", "Password")
+$users = Import-Csv "C:\Public\Storage\users.csv" -Header @("Name", "Password")
 
 foreach ($user in $users) {
     # Pull the name and password from the current user entry
@@ -33,30 +38,41 @@ foreach ($user in $users) {
     
     # Split name into first and last name
     $nameParts = $name -split " "
-    $first = $nameParts[0].ToLower()
-    $last = $nameParts[1].ToLower()
+    $first = $nameParts[0]
+    $last = $nameParts[1]
     
-    # Create SamAccountName (firstname.lastname format)
-    $samAccountName = "$first.$last"
+    # Create login name (firstname.lastname format)
+    $loginName = "$($first.ToLower()).$($last.ToLower())"
     
-    # Convert password to secure string
-    $pwd = ConvertTo-SecureString -String $password -AsPlainText -Force
+    Write-Host "Creating user: $loginName" -ForegroundColor Green
     
-    Write-Host "Creating user: $samAccountName" -ForegroundColor Green
-    
-    # Create the AD user with the paired password
     try {
-        New-ADUser -Name "$name" `
-            -SamAccountName "$samAccountName" `
-            -Path "OU=Users,DC=Dog,DC=local" `
-            -PasswordNeverExpires $true `
-            -AccountPassword $pwd `
-            -Enabled $true
-                    
-        Write-Host "✓ Successfully created $samAccountName with assigned password" -ForegroundColor Green
+        # Get the Users OU
+        $adsi = [ADSI]$UsersOU
+        
+        # Create the user object
+        $newUser = $adsi.Create("user", "cn=$name")
+        
+        # Set user properties
+        $newUser.Put("sAMAccountName", $loginName)
+        $newUser.Put("userPrincipalName", "$loginName@$Domain")
+        $newUser.Put("givenName", $first)
+        $newUser.Put("sn", $last)
+        $newUser.Put("displayName", $name)
+        $newUser.SetInfo()
+        
+        # Set the password
+        $newUser.SetPassword($password)
+        
+        # Enable the account
+        $newUser.Put("userAccountControl", 512)  # 512 = Normal account
+        $newUser.SetInfo()
+        
+        Write-Host "✓ Successfully created $loginName with assigned password" -ForegroundColor Green
     }
     catch {
-        Write-Host "✗ Failed to create $samAccountName : $_" -ForegroundColor Red
+        Write-Host "✗ Failed to create $loginName : $_" -ForegroundColor Red
     }
+}
 
 Write-Host "`nUser creation complete!" -ForegroundColor Cyan

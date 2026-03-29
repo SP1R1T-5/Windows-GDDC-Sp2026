@@ -4,18 +4,22 @@ $csvPath = "C:\Users\Public\Storage\NewEmployees.csv"
 $domain = "dog.local"
 $ouPath = "OU=Users,DC=dog,DC=local"
 
-$users = Import-Csv -Path $csvPath
-
+# FIX: Import CSV with proper encoding to handle BOM
+$users = Import-Csv -Path $csvPath -Encoding UTF8
+ 
 foreach ($user in $users) {
-
+    # Skip empty rows
+    if ([string]::IsNullOrWhiteSpace($user.UserName)) {
+        continue
+    }
+    
     $securePassword = ConvertTo-SecureString $user.Password -AsPlainText -Force
-
+    
     # Check if user already exists
     if (Get-ADUser -Filter "SamAccountName -eq '$($user.UserName)'" -ErrorAction SilentlyContinue) {
         Write-Host "User exists: $($user.UserName)" -ForegroundColor Yellow
         continue
     }
-
     try {
         New-ADUser `
             -Name "$($user.FirstName) $($user.LastName)" `
@@ -28,7 +32,6 @@ foreach ($user in $users) {
             -Path $ouPath `
             -Enabled $true `
             -ChangePasswordAtLogon $false
-
         Write-Host "Created: $($user.FirstName) $($user.LastName)" -ForegroundColor Green
     }
     catch {

@@ -23,8 +23,8 @@ foreach ($Group in $CustomGroups) {
 
 
 #Declare username and password variables.
-$usernames = Get-Content "C:\Users\Matt\Desktop\users.txt"
-$passwords = bb123#123#123
+$usernames = Get-Content "C:\users.txt"
+$passwords = "bb123#123#123"
 
 # Ensure there are the same number of usernames and passwords
 if ($usernames.Count -ne $passwords.Count) {

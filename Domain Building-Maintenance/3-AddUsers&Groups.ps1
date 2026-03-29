@@ -1,45 +1,42 @@
-#Install AD
-Install-WindowsFeature RSAT-AD-PowerShell
-
-#Luc PowerSheel From Scratch
+# Import the Active Directory module
 Import-Module ActiveDirectory
 
-#Import the file from C:
-$ADUsers = Import-csv C:\Users\Public\Storage\NewEmployees.csv
+# Define the path to your CSV file
+$csvPath = "C:\Users\Public\Storage\users.csv"
 
-#Added a LOOP $ADUsers is the folder PATH
+# Check if the file exists
+if (-Not (Test-Path $csvPath)) {
+    Write-Error "CSV file not found at $csvPath"
+    return
+}
 
-foreach ($User in $ADUsers) {
-	$Username = $User.UserName
-	$Password = $User.Password
-	$Firstname = $User.FirstName
-	$Lastname = $User.LastName
-	$Employees = $User.OrganizationalUnit  # ← Changed from $OUName
-	$Path = "OU=$Employees,DC=dog,DC=local"  # ← Now $Employees is defined
-  
-  if (!(Get-ADOrganizationalUnit -Filter {Name -eq $Employees} -SearchBase "DC=dog,DC=local")) {
-    New-ADOrganizationalUnit -Name $Employees -Path "DC=dog,DC=local"
-  }
+# Import the CSV data. Since there are no headers, we assign them manually.
+$users = Import-Csv -Path $csvPath -Header "Username", "Password"
 
-  if ($Password -ne '') {
+foreach ($user in $users) {
+    $samAccountName = $user.Username
+    $password = $user.Password
+    $upn = "$samAccountName@dog.local"
+    
+    # Convert the plain text password to a Secure String
+    $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
+
     try {
-      #Added Attribute
-      $SecurePassword = ConvertTo-SecureString $Password -AsPlainText -Force
-      New-ADUser -SamAccountName $Username `
-      -UserPrincipalName "$Username@dog.local" `
-      -Name "$Firstname $Lastname" `
-      -GivenName $Firstname `
-      -Surname $Lastname `
-      -Enabled $True `
-      -DisplayName "$Lastname, $Firstname" `
-      -AccountPassword $SecurePassword `
-      -ChangePasswordAtLogon $False `
-      -PasswordNeverExpires $True `
-      -Path $Path
-    } catch {
-      Write-Host "Password for $Username does not meet domain password policy requirements. Skipping account creation."
+        # Check if user already exists
+        Get-ADUser -Identity $samAccountName -ErrorAction Stop | Out-Null
+        Write-Host "User '$samAccountName' already exists. Skipping..." -ForegroundColor Yellow
     }
-  } else {
-    Write-Host "Password for $Username is empty. Skipping account creation."
-  }
+    catch {
+        # Create the new AD User
+        Write-Host "Creating user: $samAccountName" -ForegroundColor Cyan
+        
+        New-ADUser -Name $samAccountName `
+                   -SamAccountName $samAccountName `
+                   -UserPrincipalName $upn `
+                   -AccountPassword $securePassword `
+                   -Enabled $true `
+                   -ChangePasswordAtLogon $false
+                   
+        Write-Host "Successfully added $samAccountName" -ForegroundColor Green
+    }
 }

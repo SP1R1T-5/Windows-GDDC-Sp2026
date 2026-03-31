@@ -1,41 +1,17 @@
 Import-Module ActiveDirectory
 
-$csvPath = "C:\Users\Public\Storage\NewEmployees.csv"
-$domain = "dog.local"
-$ouPath = "OU=Users,DC=dog,DC=local"
+$Users = Import-Csv -Delimiter "," -Path "C:\Users\Public\Storage\Employees.csv"
 
-# FIX: Import CSV with proper encoding to handle BOM
-$users = Import-Csv -Path $csvPath -Encoding UTF8
- 
-foreach ($user in $users) {
-    # Skip empty rows
-    if ([string]::IsNullOrWhiteSpace($user.UserName)) {
-        continue
-    }
-    
-    $securePassword = ConvertTo-SecureString $user.Password -AsPlainText -Force
-    
-    # Check if user already exists
-    if (Get-ADUser -Filter "SamAccountName -eq '$($user.UserName)'" -ErrorAction SilentlyContinue) {
-        Write-Host "User exists: $($user.UserName)" -ForegroundColor Yellow
-        continue
-    }
-    try {
-        New-ADUser `
-            -Name "$($user.FirstName) $($user.LastName)" `
-            -GivenName $user.FirstName `
-            -Surname $user.LastName `
-            -DisplayName "$($user.FirstName) $($user.LastName)" `
-            -SamAccountName $user.UserName `
-            -UserPrincipalName "$($user.UserName)@$domain" `
-            -AccountPassword $securePassword `
-            -Path $ouPath `
-            -Enabled $true `
-            -ChangePasswordAtLogon $false
-        Write-Host "Created: $($user.FirstName) $($user.LastName)" -ForegroundColor Green
-    }
-    catch {
-        Write-Host "Failed: $($user.UserName)" -ForegroundColor Red
-        Write-Host $_
-    }
+foreach ($User in $Users) {
+  $SAM = $User.Username
+  $Displayname = $User.Displayname
+  $Firstname = $User.Firstname
+  $Lastname = $User.Lastname
+  $OU = $User.Container
+  $UPN = $User.Username + "@dog.local"
+  $Password = (ConvertTo-SecureString $User.Password -AsPlainText -Force)
+  
+  New-ADUser -Name "$Displayname" -DisplayName "$Displayname" -SamAccountName "$SAM" -UserPrincipalName "$UPN" -GivenName "$Firstname" -Surname "$Lastname" -AccountPassword $Password -Enabled $true -Path "$OU" -ChangePasswordAtLogon $false -PasswordNeverExpires $true
+  
+  Write-Host "Created user: $SAM"
 }

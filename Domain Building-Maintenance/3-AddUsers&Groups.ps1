@@ -67,4 +67,4 @@ foreach ($User in $Users) {
     } catch {
         Write-Warning "Failed to create user $SAM`: $_"
     }
-}
+}S

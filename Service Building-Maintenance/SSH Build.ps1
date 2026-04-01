@@ -1,6 +1,6 @@
 #Installing SSH Package
 write-output "Downloading SSH..."
-Invoke-WebRequest -Uri "https://github.com/PowerShell/Win32-OpenSSH/releases/latest/download/OpenSSH-Win64.zip" -OutFile "$env:TEMP\OpenSSH.zip"
+curl.exe -L "https://github.com/PowerShell/Win32-OpenSSH/releases/latest/download/OpenSSH-Win64.zip" -o "$env:TEMP\OpenSSH.zip"
 Expand-Archive -Path "$env:TEMP\OpenSSH.zip" -DestinationPath "C:\Program Files\OpenSSH" -Force
 
 #Starting SSH and enabling automatic startup

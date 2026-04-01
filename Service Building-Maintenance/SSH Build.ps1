@@ -1,21 +1,73 @@
-#Installing SSH Package
-write-output "Downloading SSH..."
-curl.exe -L "https://github.com/PowerShell/Win32-OpenSSH/releases/latest/download/OpenSSH-Win64.zip" -o "$env:TEMP\OpenSSH.zip"
-Expand-Archive -Path "$env:TEMP\OpenSSH.zip" -DestinationPath "C:\Program Files\OpenSSH" -Force
+# ------------------------------
+# SSH Server Installation
+# ------------------------------
 
-#Starting SSH and enabling automatic startup
-cd "C:\Program Files\OpenSSH\OpenSSH-Win64"
-.\install-sshd.ps1
-Start-Service sshd
-Set-Service -Name sshd -StartupType Automatic
+Write-Output "Checking OpenSSH Server capability..."
 
-#Setting Firewall for SSH Connection
-write-output "Creating Firewall Rule"
-netsh advfirewall firewall add rule name="SSHD" dir=in action=allow protocol=TCP localport=22
+$sshCap = Get-WindowsCapability -Online |
+    Where-Object Name -like 'OpenSSH.Server*'
 
-#Showing SSH Running
+if (-not $sshCap) {
+    Write-Error "OpenSSH Server capability not found on this OS."
+    exit 1
+}
+
+if ($sshCap.State -ne "Installed") {
+    Write-Output "OpenSSH Server not installed. Attempting installation..."
+
+    try {
+        Add-WindowsCapability -Online -Name $sshCap.Name -ErrorAction Stop
+        Write-Output "OpenSSH Server installed successfully."
+    }
+    catch {
+        Write-Error "ERROR: Unable to download OpenSSH Server."
+        Write-Error "Likely causes:"
+        Write-Error " - Windows Update disabled"
+        Write-Error " - WSUS blocking Optional Features"
+        Write-Error " - No internet access"
+        Write-Error "Manual installation may be required."
+        exit 1
+    }
+}
+else {
+    Write-Output "OpenSSH Server already installed."
+}
+
+# ------------------------------
+# SSH Service Configuration
+# ------------------------------
+
+if (Get-Service sshd -ErrorAction SilentlyContinue) {
+    Write-Output "Configuring SSH service..."
+    Start-Service sshd
+    Set-Service sshd -StartupType Automatic
+}
+else {
+    Write-Error "SSHD service not found. Installation did not complete."
+    exit 1
+}
+
+# ------------------------------
+# Firewall Rule
+# ------------------------------
+
+if (-not (Get-NetFirewallRule -Name "SSHD" -ErrorAction SilentlyContinue)) {
+    Write-Output "Creating firewall rule for SSH..."
+    New-NetFirewallRule `
+        -Name "SSHD" `
+        -DisplayName "OpenSSH Server" `
+        -Direction Inbound `
+        -Protocol TCP `
+        -LocalPort 22 `
+        -Action Allow
+}
+else {
+    Write-Output "Firewall rule already exists."
+}
+
+# ------------------------------
+# Verification
+# ------------------------------
+
+Write-Output "SSH service status:"
 Get-Service sshd
-
-write-output "SSH setup complete, don't break it again >:(" 
-pause
-#Jon Fortnite

@@ -1,12 +1,9 @@
 # Download the ZIP
 Import-Module BitsTransfer
-Start-BitsTransfer -Source "https://github.com/PowerShell/Win32-OpenSSH/releases/download/10.0.0.0p2-Preview/OpenSSH-Win64.zip" -Destination "C:\Temp\OpenSSH-Win64.zip"
-
-# Create destination folder
-New-Item -ItemType Directory -Force -Path "C:\Program Files\OpenSSH"
+Start-BitsTransfer -Source "https://github.com/PowerShell/Win32-OpenSSH/releases/download/10.0.0.0p2-Preview/OpenSSH-Win64.zip" -Destination "C:\Program Files\OpenSSH\OpenSSH-Win64.zip"
 
 # Extract the ZIP
-Expand-Archive -Path "C:\Temp\OpenSSH-Win64.zip" -DestinationPath "C:\Program Files\OpenSSH" -Force
+Expand-Archive -Path "C:\Program Files\OpenSSH\OpenSSH-Win64.zip" -DestinationPath "C:\Program Files\OpenSSH\OpenSSH-Win64.zip" -Force
 
 # Move files up if extracted into a subdirectory
 Move-Item -Path "C:\Program Files\OpenSSH\OpenSSH-Win64\*" -Destination "C:\Program Files\OpenSSH\" -Force

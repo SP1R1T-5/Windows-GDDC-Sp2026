@@ -1,9 +1,11 @@
 #Installing SSH Package
 write-output "Downloading SSH..."
-Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+Invoke-WebRequest -Uri "https://github.com/PowerShell/Win32-OpenSSH/releases/latest/download/OpenSSH-Win64.zip" -OutFile "$env:TEMP\OpenSSH.zip"
+Expand-Archive -Path "$env:TEMP\OpenSSH.zip" -DestinationPath "C:\Program Files\OpenSSH" -Force
 
 #Starting SSH and enabling automatic startup
-write-output "Starting SSH"
+cd "C:\Program Files\OpenSSH\OpenSSH-Win64"
+.\install-sshd.ps1
 Start-Service sshd
 Set-Service -Name sshd -StartupType Automatic
 

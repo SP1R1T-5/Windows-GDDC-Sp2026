@@ -1,5 +1,6 @@
 # Download the ZIP
-curl.exe -L -o "C:\Temp\OpenSSH-Win64.zip" "https://github.com/PowerShell/Win32-OpenSSH/releases/download/10.0.0.0p2-Preview/OpenSSH-Win64.zip"
+Import-Module BitsTransfer
+Start-BitsTransfer -Source "https://github.com/PowerShell/Win32-OpenSSH/releases/download/10.0.0.0p2-Preview/OpenSSH-Win64.zip" -Destination "C:\Temp\OpenSSH-Win64.zip"
 
 # Create destination folder
 New-Item -ItemType Directory -Force -Path "C:\Program Files\OpenSSH"

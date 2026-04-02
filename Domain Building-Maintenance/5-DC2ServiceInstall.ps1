@@ -63,47 +63,54 @@ Write-Host "SMB configured." -ForegroundColor Green
 # ------------------------------
 # SSH
 # ------------------------------
-Write-Host "`n=== Installing OpenSSH Server ===" -ForegroundColor Cyan
+# 1. Setup paths
+$installPath = "C:\Program Files\OpenSSH-Win64"
+if (!(Test-Path $installPath)) { New-Item -ItemType Directory -Force -Path $installPath }
 
-# Check if already installed
-$sshCapability = Get-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0 -ErrorAction SilentlyContinue
+# 2. Updated URL (Points to the latest stable release)
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$url = "https://github.com/PowerShell/Win32-OpenSSH/releases/latest/download/OpenSSH-Win64.zip"
+$zipFile = "$env:TEMP\openssh.zip"
 
-if ($sshCapability.State -eq "Installed") {
-    Write-Host "OpenSSH Server already installed." -ForegroundColor Yellow
-} else {
-    Write-Host "Attempting online install of OpenSSH..."
-    $result = Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0 -ErrorAction SilentlyContinue
+Write-Host "Downloading OpenSSH..." -ForegroundColor Cyan
+try {
+    Invoke-WebRequest -Uri $url -OutFile $zipFile -ErrorAction Stop
+} catch {
+    Write-Error "Download failed again. Please check your internet connection or if GitHub is blocked."
+    return
+}
 
-    # Fallback: source from local Windows image (no internet needed)
-    if ((Get-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0).State -ne "Installed") {
-        Write-Warning "Online install failed. Attempting install from local Windows image..."
-        Add-WindowsCapability -Online `
-            -Name OpenSSH.Server~~~~0.0.1.0 `
-            -Source "C:\Windows\WinSxS" `
-            -LimitAccess  # Prevents reaching out to Windows Update
+# 3. Verify file exists before extracting
+if (Test-Path $zipFile) {
+    Write-Host "Extracting files..." -ForegroundColor Cyan
+    Expand-Archive -Path $zipFile -DestinationPath "$env:TEMP\ssh_temp" -Force
+    
+    # Move files to Program Files
+    Copy-Item -Path "$env:TEMP\ssh_temp\OpenSSH-Win64\*" -Destination $installPath -Recurse -Force
+    
+    # 4. Register the Service
+    Set-Location $installPath
+    if (Test-Path ".\install-sshd.ps1") {
+        .\install-sshd.ps1
+        Write-Host "Installation script executed successfully." -ForegroundColor Green
+    } else {
+        Write-Error "Could not find install-sshd.ps1 in $installPath"
     }
 }
 
-# Confirm install before trying to start
-if ((Get-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0).State -eq "Installed") {
-    Set-Service -Name sshd -StartupType Automatic
-    Start-Service sshd
+#Starting SSH and enabling automatic startup
+write-output "Starting SSH"
+Start-Service sshd
+Set-Service -Name sshd -StartupType Automatic
 
-    # Use PowerShell firewall cmdlet instead of netsh (more reliable on Server)
-    if (-not (Get-NetFirewallRule -Name "OpenSSH-Server-In-TCP" -ErrorAction SilentlyContinue)) {
-        New-NetFirewallRule -Name "OpenSSH-Server-In-TCP" `
-            -DisplayName "OpenSSH Server (sshd)" `
-            -Enabled True `
-            -Direction Inbound `
-            -Protocol TCP `
-            -Action Allow `
-            -LocalPort 22
-    }
-    Get-Service sshd
-    Write-Host "SSH installed and running." -ForegroundColor Green
-} else {
-    Write-Warning "OpenSSH Server could not be installed. Check Windows Update connectivity or mount the Server ISO as a source."
-}
+#Setting Firewall for SSH Connection
+write-output "Creating Firewall Rule"
+netsh advfirewall firewall add rule name="SSHD" dir=in action=allow protocol=TCP localport=22
+
+#Showing SSH Running
+Get-Service sshd
+
+Write-Host "`nAll services installed and enabled."
 
 # ------------------------------
 # Completion

@@ -1,3 +1,7 @@
+#Verifiying the Windows Update Server is Running and set to Automatic to fix source file issue
+Get-Service wuauserv | Start-Service
+Set-Service wuauserv -StartupType Automatic
+
 # 1. Create the directory first (otherwise BitsTransfer might fail)
 $destPath = "C:\Program Files\OpenSSH"
 if (!(Test-Path $destPath)) { New-Item -ItemType Directory -Path $destPath }

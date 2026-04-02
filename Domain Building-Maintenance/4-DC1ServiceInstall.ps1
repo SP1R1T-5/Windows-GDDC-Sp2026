@@ -1,3 +1,7 @@
+#Verifiying the Windows Update Server is Running and set to Automatic to fix source file issue
+Get-Service wuauserv | Start-Service
+Set-Service wuauserv -StartupType Automatic
+
 # ==============================
 # Install and Enable Services
 # ==============================

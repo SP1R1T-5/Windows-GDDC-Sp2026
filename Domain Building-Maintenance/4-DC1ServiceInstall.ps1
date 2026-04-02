@@ -45,9 +45,40 @@ Start-Service LanmanServer
 # ------------------------------
 # SSH
 # ------------------------------
-#Installing SSH Package
-write-output "Downloading SSH..."
-Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+# 1. Setup paths
+$installPath = "C:\Program Files\OpenSSH-Win64"
+if (!(Test-Path $installPath)) { New-Item -ItemType Directory -Force -Path $installPath }
+
+# 2. Updated URL (Points to the latest stable release)
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$url = "https://github.com/PowerShell/Win32-OpenSSH/releases/latest/download/OpenSSH-Win64.zip"
+$zipFile = "$env:TEMP\openssh.zip"
+
+Write-Host "Downloading OpenSSH..." -ForegroundColor Cyan
+try {
+    Invoke-WebRequest -Uri $url -OutFile $zipFile -ErrorAction Stop
+} catch {
+    Write-Error "Download failed again. Please check your internet connection or if GitHub is blocked."
+    return
+}
+
+# 3. Verify file exists before extracting
+if (Test-Path $zipFile) {
+    Write-Host "Extracting files..." -ForegroundColor Cyan
+    Expand-Archive -Path $zipFile -DestinationPath "$env:TEMP\ssh_temp" -Force
+    
+    # Move files to Program Files
+    Copy-Item -Path "$env:TEMP\ssh_temp\OpenSSH-Win64\*" -Destination $installPath -Recurse -Force
+    
+    # 4. Register the Service
+    Set-Location $installPath
+    if (Test-Path ".\install-sshd.ps1") {
+        .\install-sshd.ps1
+        Write-Host "Installation script executed successfully." -ForegroundColor Green
+    } else {
+        Write-Error "Could not find install-sshd.ps1 in $installPath"
+    }
+}
 
 #Starting SSH and enabling automatic startup
 write-output "Starting SSH"

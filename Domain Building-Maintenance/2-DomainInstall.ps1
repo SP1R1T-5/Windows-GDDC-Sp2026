@@ -1,7 +1,11 @@
-# ==============================
+# Renames the VM and Creates a Team's Domain
+# The VM will reboot after Successful Creation of the Domain
+# Designed for Windows Server 2016 
+# GDDC Sp26 - DC1 Setup Script
+
+
 # Rename Computer
-# ==============================
-$NewHostname = "DOG-DC#"
+$NewHostname = "DOG-DC1"
 Write-Host "`n=== Renaming Computer to '$NewHostname' ===" -ForegroundColor Cyan
 if ($env:COMPUTERNAME -ne $NewHostname) {
     Rename-Computer -NewName $NewHostname -Force
@@ -11,18 +15,15 @@ if ($env:COMPUTERNAME -ne $NewHostname) {
 }
 
 
-# ==============================
 # Install AD DS and Create Domain
-# ==============================
+$DomainName  = "DOGTeam#.local"  # Rename the # for the Team Number
+$NetBIOSName = "DOG#" # Rename the # for the Team Number
+$AdminPassword = ConvertTo-SecureString "bb123#123#123" -AsPlainText -Force # This is seperate from the Admin User, this is for break glass if there is an issue during install
 
-$DomainName  = "DOG.local"
-$NetBIOSName = "DOG"
-$AdminPassword = ConvertTo-SecureString "UAUKnow67!" -AsPlainText -Force
-
-Write-Host "`n=== Installing AD DS Role ===" -ForegroundColor Cyan
+Write-Host " Installing AD DS Role " -ForegroundColor Cyan
 Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools -Verbose
 
-Write-Host "`n=== Promoting to Domain Controller ===" -ForegroundColor Cyan
+Write-Host " Promoting to Domain Controller " -ForegroundColor Cyan
 Import-Module ADDSDeployment
 
 Install-ADDSForest `
@@ -34,3 +35,5 @@ Install-ADDSForest `
     -InstallDns:$true `
     -NoRebootOnCompletion:$false `
     -Force:$true
+
+# Jon Fortnite

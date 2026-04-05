@@ -1,6 +1,7 @@
-# ==============================
-# Run Sysprep, we're cloning on prox
-# ==============================
+# Run Sysprep, If this step is Missed the VM won't connect to the domain
+# The VM will reboot after Successful Completion of Sysprep
+# Designed for Windows Server 2016 
+
 Write-Host "`n=== Running Sysprep ===" -ForegroundColor Cyan
 $SysprepPath = "C:\Windows\System32\Sysprep\sysprep.exe"
 
@@ -11,3 +12,5 @@ if (Test-Path $SysprepPath) {
 } else {
     Write-Host "Sysprep not found at '$SysprepPath'." -ForegroundColor Red
 }
+
+#Jon Fortnite

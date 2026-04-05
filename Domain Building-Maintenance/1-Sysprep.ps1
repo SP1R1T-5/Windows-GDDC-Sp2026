@@ -1,6 +1,7 @@
 # Run Sysprep, If this step is Missed the VM won't connect to the domain
 # The VM will reboot after Successful Completion of Sysprep
 # Designed for Windows Server 2016 
+# GDDC Sp26 - DC1 & DC2 Setup Script
 
 Write-Host "`n=== Running Sysprep ===" -ForegroundColor Cyan
 $SysprepPath = "C:\Windows\System32\Sysprep\sysprep.exe"

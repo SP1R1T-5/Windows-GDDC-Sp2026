@@ -1,8 +1,15 @@
+# Adds users to the Domain and adds them to listed Groups
+# Necessary Files: NewEmployees.csv
+# Designed for Windows Server 2016 
+# GDDC Sp26 - Domain User Setup Script
+
+
+
 Import-Module ActiveDirectory
 
-$Users = Import-Csv -Delimiter "," -Path "C:\Users\Public\Storage\Employees.csv"
+$Users = Import-Csv -Delimiter "," -Path "C:\Users\Public\Storage\Employees.csv" # Change to wherever the NewEmployee.csv file lives
 
-# --- NEW: Extract unique OUs from the CSV and create them if they don't exist ---
+# Extract unique OUs from the CSV and create them if they don't exist
 $UniqueContainers = $Users.Container | Select-Object -Unique
 
 foreach ($Container in $UniqueContainers) {
@@ -14,7 +21,6 @@ foreach ($Container in $UniqueContainers) {
         Get-ADOrganizationalUnit -Identity $OU_DN -ErrorAction Stop | Out-Null
     } catch {
         # If it fails, the OU doesn't exist. Parse the DN to get the Name and Path.
-        # Example: OU=Engineering, DC=dog, DC=local -> Name: Engineering, Path: DC=dog, DC=local
         if ($OU_DN -match '^OU=(?<Name>[^,]+),(?<Path>.+)$') {
             $OUName = $Matches['Name']
             $OUPath = $Matches['Path']
@@ -30,8 +36,10 @@ foreach ($Container in $UniqueContainers) {
         }
     }
 }
+
 # ---------------------------------------------------------------------------------
 
+# Parses the csv file for user information and formats it for Active Directory
 foreach ($User in $Users) {
     $SAM         = $User.Username
     $Displayname = $User.Displayname
@@ -49,6 +57,7 @@ foreach ($User in $Users) {
         continue
     }
 
+    # Creates the user with the collected information
     try {
         New-ADUser `
             -Name                  $Displayname `
@@ -64,7 +73,9 @@ foreach ($User in $Users) {
             -PasswordNeverExpires  $true
 
         Write-Host "Created user: $SAM" -ForegroundColor Green
-    } catch {
+    } catch {  
         Write-Warning "Failed to create user $SAM`: $_"
     }
-}S
+}
+
+# Jon Fortnite

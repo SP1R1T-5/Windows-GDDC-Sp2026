@@ -18,7 +18,7 @@ if ($env:COMPUTERNAME -ne $NewHostname) {
 # Define domain, user, and password variables to join the Domain with the Domain Admin
 $domain = "DOG#.local" # Replace the # with the Team Number
 $user = "DOG\Administrator"
-$password = "bb123#123" 
+$password = "bb123#123#123" 
 
 # Convert password to a secure string
 $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
